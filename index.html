@@ -1,22 +1,254 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="az">
 
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js" defer></script>
-    <script src="app.js" defer></script>
-    <link rel="preconnect" href="https://fonts.gstatic.com">
-    <link href="https://fonts.googleapis.com/css2?family=Dosis:wght@500&display=swap" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.1/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <title>DMS | Daxil ol</title>
+    <link rel="icon" href="Assets/seferberlik.png">
+
+    <!-- Font -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+        rel="stylesheet"
+    >
+
+    <!-- Font Awesome -->
+    <script
+        src="https://kit.fontawesome.com/51d2f8b0de.js"
+        crossorigin="anonymous"
+    ></script>
+
+    <!-- CSS -->
     <link rel="stylesheet" href="reset.css">
     <link rel="stylesheet" href="style.css">
-    <title>start</title>
+
+    <!-- jQuery -->
+    <script
+        src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"
+        defer>
+    </script>
+
+    <!-- JS -->
+    <script src="translation.js" defer></script>
+    <script src="dark-mode.js" defer></script>
+    <script src="login.js" defer></script>
 </head>
 
 <body>
-   
+
+    <main class="login-page">
+
+        <!-- TOP BAR -->
+        <header class="top-bar">
+
+            <div class="brand">
+                <div class="brand-icon">
+                    <i class="fa-solid fa-shield-halved"></i>
+                </div>
+
+                <div class="brand-name">
+                    <span>DMS</span>
+                    <small>Digital Messaging System</small>
+                </div>
+            </div>
+
+            <div class="top-actions">
+
+                <!-- Language -->
+                <button class="icon-button" id="languageButton" type="button">
+                    <i class="fa-solid fa-globe"></i>
+                    <span id="currentLanguage">AZ</span>
+                </button>
+
+                <!-- Dark mode -->
+                <button
+                    class="icon-button"
+                    id="darkModeButton"
+                    type="button"
+                    aria-label="Dark mode"
+                >
+                    <i class="fa-solid fa-moon"></i>
+                </button>
+
+            </div>
+
+        </header>
+
+
+        <!-- LOGIN CONTENT -->
+        <section class="login-container">
+
+            <div class="login-logo">
+                <div class="logo-circle">
+                    <i class="fa-solid fa-comments"></i>
+                </div>
+            </div>
+
+            <div class="login-heading">
+                <h1 data-i18n="login.title">Xoş gəlmisiniz</h1>
+
+                <p data-i18n="login.subtitle">
+                    DMS hesabınıza daxil olun
+                </p>
+            </div>
+
+
+            <!-- LOGIN FORM -->
+            <form id="loginForm" class="login-form">
+
+                <div class="input-group">
+
+                    <label for="username" data-i18n="login.username">
+                        İstifadəçi adı
+                    </label>
+
+                    <div class="input-wrapper">
+
+                        <i class="fa-regular fa-user"></i>
+
+                        <input
+                            type="text"
+                            id="username"
+                            name="username"
+                            placeholder="İstifadəçi adınızı daxil edin"
+                            data-i18n-placeholder="login.usernamePlaceholder"
+                            autocomplete="username"
+                            required
+                        >
+
+                    </div>
+
+                </div>
+
+
+                <div class="input-group">
+
+                    <label for="password" data-i18n="login.password">
+                        Şifrə
+                    </label>
+
+                    <div class="input-wrapper">
+
+                        <i class="fa-solid fa-lock"></i>
+
+                        <input
+                            type="password"
+                            id="password"
+                            name="password"
+                            placeholder="Şifrənizi daxil edin"
+                            data-i18n-placeholder="login.passwordPlaceholder"
+                            autocomplete="current-password"
+                            required
+                        >
+
+                        <button
+                            type="button"
+                            class="password-toggle"
+                            id="passwordToggle"
+                            aria-label="Şifrəni göstər"
+                        >
+                            <i class="fa-regular fa-eye"></i>
+                        </button>
+
+                    </div>
+
+                </div>
+
+
+                <div class="form-options">
+
+                    <label class="remember-me">
+
+                        <input
+                            type="checkbox"
+                            id="rememberMe"
+                        >
+
+                        <span data-i18n="login.remember">
+                            Məni xatırla
+                        </span>
+
+                    </label>
+
+                    <a
+                        href="forgot-password.html"
+                        data-i18n="login.forgotPassword"
+                    >
+                        Şifrəni unutmusunuz?
+                    </a>
+
+                </div>
+
+
+                <button
+                    type="submit"
+                    class="login-button"
+                    id="loginButton"
+                >
+                    <span data-i18n="login.button">
+                        Daxil ol
+                    </span>
+
+                    <i class="fa-solid fa-arrow-right"></i>
+                </button>
+
+            </form>
+
+
+            <!-- REGISTER --> 
+            <!-- <div class="register-section">
+
+                <span data-i18n="login.noAccount">
+                    Hesabınız yoxdur?
+                </span>
+
+                <a
+                    href="register.html"
+                    data-i18n="login.register"
+                >
+                    Qeydiyyatdan keçin
+                </a>
+
+            </div> -->
+
+        </section>
+
+
+        <!-- FOOTER -->
+        <footer class="login-footer">
+
+            <span>© 2026 DMS</span>
+
+            <span class="footer-dot">•</span>
+
+            <span data-i18n="login.secure">
+                Təhlükəsiz mesajlaşma sistemi
+            </span>
+
+        </footer>
+
+
+        <!-- LANGUAGE MENU -->
+        <div class="language-menu" id="languageMenu">
+
+            <button type="button" data-language="az">
+                🇦🇿 Azərbaycan
+            </button>
+
+            <button type="button" data-language="en">
+                🇬🇧 English
+            </button>
+
+            <button type="button" data-language="ru">
+                🇷🇺 Русский
+            </button>
+
+        </div>
+
+    </main>
+
 </body>
 
 </html>
