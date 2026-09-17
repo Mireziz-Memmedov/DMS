@@ -11,8 +11,8 @@ $(document).ready(function () {
             password.attr("type", "text");
 
             icon
-                .removeClass("fa-eye")
-                .addClass("fa-eye-slash");
+                .removeClass("fa-eye-slash")
+                .addClass("fa-eye");
 
             $(this).attr("aria-label", "Şifrəni gizlət");
 
@@ -21,8 +21,8 @@ $(document).ready(function () {
             password.attr("type", "password");
 
             icon
-                .removeClass("fa-eye-slash")
-                .addClass("fa-eye");
+                .removeClass("fa-eye")
+                .addClass("fa-eye-slash");
 
             $(this).attr("aria-label", "Şifrəni göstər");
         }
