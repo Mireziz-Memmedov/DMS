@@ -29,4 +29,25 @@ $(document).ready(function () {
 
     });
 
+    //Daxil ol clik edende profil html acilir
+    $('#loginButton').click(function (e) {
+
+        e.preventDefault();
+
+        const username = $('#username').val().trim();
+        const password = $('#password').val().trim();
+
+        if (username === '') {
+            $('#username').focus();
+            return;
+        }
+
+        if (password === '') {
+            $('#password').focus();
+            return;
+        }
+
+        window.location.href = "./profile.html";
+    });
+
 });

@@ -3,6 +3,7 @@ $(document).ready(function () {
     const translations = {
 
         az: {
+            // LOGIN
             "login.title": "Xoş gəlmisiniz",
             "login.subtitle": "DMS hesabınıza daxil olun",
             "login.username": "İstifadəçi adı",
@@ -14,10 +15,35 @@ $(document).ready(function () {
             "login.button": "Daxil ol",
             "login.noAccount": "Hesabınız yoxdur?",
             "login.register": "Qeydiyyatdan keçin",
-            "login.secure": "Təhlükəsiz mesajlaşma sistemi"
+            "login.secure": "Təhlükəsiz mesajlaşma sistemi",
+
+            // PROFILE
+            "profile.title": "Profil",
+            "profile.status": "DMS istifadəçisi",
+
+            "profile.account": "Hesab məlumatları",
+            "profile.username": "İstifadəçi adı",
+            "profile.email": "E-poçt",
+            "profile.joined": "Qeydiyyat tarixi",
+
+            "profile.settings": "Parametrlər",
+            "profile.notifications": "Bildirişlər",
+            "profile.notificationsDescription": "Mesaj və sistem bildirişləri",
+            "profile.privacy": "Məxfilik",
+            "profile.privacyDescription": "Hesab və məxfilik parametrləri",
+            "profile.security": "Təhlükəsizlik",
+            "profile.securityDescription": "Hesab təhlükəsizliyi",
+
+            "profile.language": "Dil",
+            "profile.languageSelect": "Tətbiq dili",
+
+            "profile.logout": "Hesabdan çıx",
+
+            "profile.footer": "Təhlükəsiz mesajlaşma sistemi"
         },
 
         en: {
+            // LOGIN
             "login.title": "Welcome",
             "login.subtitle": "Sign in to your DMS account",
             "login.username": "Username",
@@ -29,10 +55,35 @@ $(document).ready(function () {
             "login.button": "Sign in",
             "login.noAccount": "Don't have an account?",
             "login.register": "Create an account",
-            "login.secure": "Secure messaging system"
+            "login.secure": "Secure messaging system",
+
+            // PROFILE
+            "profile.title": "Profile",
+            "profile.status": "DMS User",
+
+            "profile.account": "Account Information",
+            "profile.username": "Username",
+            "profile.email": "Email",
+            "profile.joined": "Registration Date",
+
+            "profile.settings": "Settings",
+            "profile.notifications": "Notifications",
+            "profile.notificationsDescription": "Messages and system notifications",
+            "profile.privacy": "Privacy",
+            "profile.privacyDescription": "Account and privacy settings",
+            "profile.security": "Security",
+            "profile.securityDescription": "Account security",
+
+            "profile.language": "Language",
+            "profile.languageSelect": "App Language",
+
+            "profile.logout": "Log out",
+
+            "profile.footer": "Secure messaging system"
         },
 
         ru: {
+            // LOGIN
             "login.title": "Добро пожаловать",
             "login.subtitle": "Войдите в свой аккаунт DMS",
             "login.username": "Имя пользователя",
@@ -44,7 +95,31 @@ $(document).ready(function () {
             "login.button": "Войти",
             "login.noAccount": "Нет аккаунта?",
             "login.register": "Зарегистрироваться",
-            "login.secure": "Безопасная система обмена сообщениями"
+            "login.secure": "Безопасная система обмена сообщениями",
+
+            // PROFILE
+            "profile.title": "Профиль",
+            "profile.status": "Пользователь DMS",
+
+            "profile.account": "Информация об аккаунте",
+            "profile.username": "Имя пользователя",
+            "profile.email": "Электронная почта",
+            "profile.joined": "Дата регистрации",
+
+            "profile.settings": "Настройки",
+            "profile.notifications": "Уведомления",
+            "profile.notificationsDescription": "Сообщения и системные уведомления",
+            "profile.privacy": "Конфиденциальность",
+            "profile.privacyDescription": "Настройки аккаунта и конфиденциальности",
+            "profile.security": "Безопасность",
+            "profile.securityDescription": "Безопасность аккаунта",
+
+            "profile.language": "Язык",
+            "profile.languageSelect": "Язык приложения",
+
+            "profile.logout": "Выйти из аккаунта",
+
+            "profile.footer": "Безопасная система обмена сообщениями"
         }
 
     };
