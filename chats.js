@@ -99,5 +99,6 @@ $(document).ready(function () {
         // Sonradan dropdown menyu əlavə edə bilərik.
         console.log("Menu açıldı");
     });
+    
 
 });

@@ -30,12 +30,6 @@ $(document).ready(function () {
     });
 
 
-    // Daha çox düyməsi
-    $('#moreButton').click(function () {
-        alert('Profil seçimləri');
-    });
-
-
     // Bildirişlər
     $('#notificationsButton').click(function () {
         alert('Bildirişlər bölməsi');
@@ -61,15 +55,5 @@ $(document).ready(function () {
 
         window.location.href = './index.html';
     });
-
-
-    // Saxlanılmış dili göstər
-    const savedLanguage = localStorage.getItem('selectedLanguage') || 'az';
-
-    $('#currentLanguage').text(savedLanguage.toUpperCase());
-
-    if (typeof setLanguage === 'function') {
-        setLanguage(savedLanguage);
-    }
 
 });

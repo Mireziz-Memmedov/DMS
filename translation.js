@@ -39,7 +39,27 @@ $(document).ready(function () {
 
             "profile.logout": "Hesabdan çıx",
 
-            "profile.footer": "Təhlükəsiz mesajlaşma sistemi"
+            "profile.footer": "Təhlükəsiz mesajlaşma sistemi",
+
+            // CHATS
+
+            "chats.search": "Axtar",
+            "chats.language": "Dil",
+            "chats.menu": "Menyu",
+
+            "chats.subtitle": "Əməkdaşlararası mesajlaşma",
+
+            "chats.searchPlaceholder": "Söhbət axtar...",
+
+            "chats.title": "Mesajlar",
+            "chats.description": "Əməkdaşlarla söhbətləriniz",
+
+            "chats.notFound": "Söhbət tapılmadı",
+            "chats.noResults": "Axtarışınıza uyğun söhbət yoxdur.",
+
+            "chats.messages": "Mesajlar",
+            "chats.employees": "Əməkdaşlar",
+            "chats.profile": "Profil"
         },
 
         en: {
@@ -79,7 +99,27 @@ $(document).ready(function () {
 
             "profile.logout": "Log out",
 
-            "profile.footer": "Secure messaging system"
+            "profile.footer": "Secure messaging system",
+
+            // CHATS
+
+            "chats.search": "Search",
+            "chats.language": "Language",
+            "chats.menu": "Menu",
+
+            "chats.subtitle": "Employee messaging",
+
+            "chats.searchPlaceholder": "Search chats...",
+
+            "chats.title": "Messages",
+            "chats.description": "Your conversations with employees",
+
+            "chats.notFound": "No chats found",
+            "chats.noResults": "No conversations match your search.",
+
+            "chats.messages": "Messages",
+            "chats.employees": "Employees",
+            "chats.profile": "Profile"
         },
 
         ru: {
@@ -119,7 +159,27 @@ $(document).ready(function () {
 
             "profile.logout": "Выйти из аккаунта",
 
-            "profile.footer": "Безопасная система обмена сообщениями"
+            "profile.footer": "Безопасная система обмена сообщениями",
+
+            // CHATS
+
+            "chats.search": "Поиск",
+            "chats.language": "Язык",
+            "chats.menu": "Меню",
+
+            "chats.subtitle": "Обмен сообщениями между сотрудниками",
+
+            "chats.searchPlaceholder": "Поиск чатов...",
+
+            "chats.title": "Сообщения",
+            "chats.description": "Ваши беседы с сотрудниками",
+
+            "chats.notFound": "Чаты не найдены",
+            "chats.noResults": "Нет бесед, соответствующих вашему поиску.",
+
+            "chats.messages": "Сообщения",
+            "chats.employees": "Сотрудники",
+            "chats.profile": "Профиль"
         }
 
     };

@@ -14,7 +14,7 @@
     <link rel="stylesheet" href="style.css">
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
-    
+
     <!-- JS -->
     <script src="translation.js" defer></script>
     <script src="dark-mode.js" defer></script>
@@ -30,28 +30,38 @@
         <header class="top-bar">
 
             <div class="brand">
+
                 <div class="brand-icon">
                     <i class="fa-solid fa-comments"></i>
                 </div>
 
                 <div class="brand-name">
                     <span>DMS</span>
-                    <small>Əməkdaşlararası mesajlaşma</small>
+
+                    <small data-i18n="chats.subtitle">
+                        Əməkdaşlararası mesajlaşma
+                    </small>
                 </div>
+
             </div>
+
 
             <div class="top-actions">
 
+                <!-- Search -->
                 <button class="icon-button" id="searchButton" aria-label="Axtar">
                     <i class="fa-solid fa-magnifying-glass"></i>
                 </button>
 
+                <!-- Language -->
                 <button class="icon-button" id="languageButton" aria-label="Dil">
                     <i class="fa-solid fa-globe"></i>
+                    <span id="currentLanguage">AZ</span>
                 </button>
 
-                <button class="icon-button" id="menuButton" aria-label="Menyu">
-                    <i class="fa-solid fa-ellipsis-vertical"></i>
+                <!-- Dark Mode -->
+                <button class="icon-button" id="darkModeButton" type="button" aria-label="Dark mode">
+                    <i class="fa-solid fa-moon"></i>
                 </button>
 
             </div>
@@ -64,7 +74,8 @@
 
             <i class="fa-solid fa-magnifying-glass"></i>
 
-            <input type="text" id="chatSearch" placeholder="Söhbət axtar..." autocomplete="off">
+            <input type="text" id="chatSearch" data-i18n-placeholder="chats.searchPlaceholder"
+                placeholder="Söhbət axtar..." autocomplete="off">
 
             <button id="closeSearch">
                 <i class="fa-solid fa-xmark"></i>
@@ -77,8 +88,15 @@
         <section class="page-header">
 
             <div>
-                <h1>Mesajlar</h1>
-                <p>Əməkdaşlarla söhbətləriniz</p>
+
+                <h1 data-i18n="chats.title">
+                    Mesajlar
+                </h1>
+
+                <p data-i18n="chats.description">
+                    Əməkdaşlarla söhbətləriniz
+                </p>
+
             </div>
 
             <button class="new-chat-button" id="newChatButton">
@@ -92,6 +110,8 @@
         <section class="chat-list" id="chatList">
 
             <!-- CHAT -->
+            <!-- Backend gələndə bu hissə dinamik olacaq -->
+
             <article class="chat-item">
 
                 <div class="chat-avatar">
@@ -102,16 +122,23 @@
                 <div class="chat-content">
 
                     <div class="chat-top">
+
                         <h3>Ahmad Məmmədov</h3>
+
                         <time>14:32</time>
+
                     </div>
 
                     <div class="chat-bottom">
-                        <p>Salam, sənə sənədi göndərdim.</p>
+
+                        <p>
+                            Salam, sənə sənədi göndərdim.
+                        </p>
 
                         <span class="unread-count">
                             2
                         </span>
+
                     </div>
 
                 </div>
@@ -120,6 +147,7 @@
 
 
             <!-- CHAT -->
+
             <article class="chat-item">
 
                 <div class="chat-avatar">
@@ -129,12 +157,19 @@
                 <div class="chat-content">
 
                     <div class="chat-top">
+
                         <h3>Elvin Səfərov</h3>
+
                         <time>12:15</time>
+
                     </div>
 
                     <div class="chat-bottom">
-                        <p>Sabah saat 10-da iclas olacaq.</p>
+
+                        <p>
+                            Sabah saat 10-da iclas olacaq.
+                        </p>
+
                     </div>
 
                 </div>
@@ -143,22 +178,33 @@
 
 
             <!-- CHAT -->
+
             <article class="chat-item">
 
                 <div class="chat-avatar">
+
                     NM
+
                     <span class="online-dot"></span>
+
                 </div>
 
                 <div class="chat-content">
 
                     <div class="chat-top">
+
                         <h3>Nigar Məmmədli</h3>
+
                         <time>Dünən</time>
+
                     </div>
 
                     <div class="chat-bottom">
-                        <p>Oldu, təşəkkür edirəm.</p>
+
+                        <p>
+                            Oldu, təşəkkür edirəm.
+                        </p>
+
                     </div>
 
                 </div>
@@ -167,6 +213,7 @@
 
 
             <!-- CHAT -->
+
             <article class="chat-item">
 
                 <div class="chat-avatar">
@@ -176,12 +223,19 @@
                 <div class="chat-content">
 
                     <div class="chat-top">
+
                         <h3>Rauf Kərimov</h3>
+
                         <time>Dünən</time>
+
                     </div>
 
                     <div class="chat-bottom">
-                        <p>Fayla baxa bildin?</p>
+
+                        <p>
+                            Fayla baxa bildin?
+                        </p>
+
                     </div>
 
                 </div>
@@ -192,15 +246,18 @@
 
 
         <!-- EMPTY STATE -->
+
         <section class="empty-state" id="emptyState">
 
             <div class="empty-icon">
                 <i class="fa-regular fa-comments"></i>
             </div>
 
-            <h2>Söhbət tapılmadı</h2>
+            <h2 data-i18n="chats.notFound">
+                Söhbət tapılmadı
+            </h2>
 
-            <p>
+            <p data-i18n="chats.noResults">
                 Axtarışınıza uyğun söhbət yoxdur.
             </p>
 
@@ -208,6 +265,7 @@
 
 
         <!-- LANGUAGE MENU -->
+
         <div class="language-menu" id="languageMenu">
 
             <button data-language="az">
@@ -229,21 +287,39 @@
 
 
         <!-- BOTTOM NAVIGATION -->
+
         <nav class="bottom-nav">
 
             <a href="chats.html" class="nav-item active">
+
                 <i class="fa-solid fa-message"></i>
-                <span>Mesajlar</span>
+
+                <span data-i18n="chats.messages">
+                    Mesajlar
+                </span>
+
             </a>
 
+
             <button class="nav-item" id="contactsButton">
+
                 <i class="fa-solid fa-users"></i>
-                <span>Əməkdaşlar</span>
+
+                <span data-i18n="chats.employees">
+                    Əməkdaşlar
+                </span>
+
             </button>
 
+
             <a href="profile.html" class="nav-item">
+
                 <i class="fa-regular fa-user"></i>
-                <span>Profil</span>
+
+                <span data-i18n="chats.profile">
+                    Profil
+                </span>
+
             </a>
 
         </nav>
