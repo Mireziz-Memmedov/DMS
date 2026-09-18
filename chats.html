@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="az">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>DMS | Mesajlar</title>
+    <link rel="icon" href="Assets/DMS.png">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+
+    <link rel="stylesheet" href="reset.css">
+    <link rel="stylesheet" href="style.css">
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    
+    <!-- JS -->
+    <script src="translation.js" defer></script>
+    <script src="dark-mode.js" defer></script>
+    <script src="chats.js" defer></script>
+
+</head>
+
+<body>
+
+    <main class="chats-page">
+
+        <!-- TOP BAR -->
+        <header class="top-bar">
+
+            <div class="brand">
+                <div class="brand-icon">
+                    <i class="fa-solid fa-comments"></i>
+                </div>
+
+                <div class="brand-name">
+                    <span>DMS</span>
+                    <small>Əməkdaşlararası mesajlaşma</small>
+                </div>
+            </div>
+
+            <div class="top-actions">
+
+                <button class="icon-button" id="searchButton" aria-label="Axtar">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                </button>
+
+                <button class="icon-button" id="languageButton" aria-label="Dil">
+                    <i class="fa-solid fa-globe"></i>
+                </button>
+
+                <button class="icon-button" id="menuButton" aria-label="Menyu">
+                    <i class="fa-solid fa-ellipsis-vertical"></i>
+                </button>
+
+            </div>
+
+        </header>
+
+
+        <!-- SEARCH -->
+        <div class="search-box" id="searchBox">
+
+            <i class="fa-solid fa-magnifying-glass"></i>
+
+            <input type="text" id="chatSearch" placeholder="Söhbət axtar..." autocomplete="off">
+
+            <button id="closeSearch">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
+        </div>
+
+
+        <!-- PAGE HEADER -->
+        <section class="page-header">
+
+            <div>
+                <h1>Mesajlar</h1>
+                <p>Əməkdaşlarla söhbətləriniz</p>
+            </div>
+
+            <button class="new-chat-button" id="newChatButton">
+                <i class="fa-solid fa-plus"></i>
+            </button>
+
+        </section>
+
+
+        <!-- CHAT LIST -->
+        <section class="chat-list" id="chatList">
+
+            <!-- CHAT -->
+            <article class="chat-item">
+
+                <div class="chat-avatar">
+                    AM
+                    <span class="online-dot"></span>
+                </div>
+
+                <div class="chat-content">
+
+                    <div class="chat-top">
+                        <h3>Ahmad Məmmədov</h3>
+                        <time>14:32</time>
+                    </div>
+
+                    <div class="chat-bottom">
+                        <p>Salam, sənə sənədi göndərdim.</p>
+
+                        <span class="unread-count">
+                            2
+                        </span>
+                    </div>
+
+                </div>
+
+            </article>
+
+
+            <!-- CHAT -->
+            <article class="chat-item">
+
+                <div class="chat-avatar">
+                    ES
+                </div>
+
+                <div class="chat-content">
+
+                    <div class="chat-top">
+                        <h3>Elvin Səfərov</h3>
+                        <time>12:15</time>
+                    </div>
+
+                    <div class="chat-bottom">
+                        <p>Sabah saat 10-da iclas olacaq.</p>
+                    </div>
+
+                </div>
+
+            </article>
+
+
+            <!-- CHAT -->
+            <article class="chat-item">
+
+                <div class="chat-avatar">
+                    NM
+                    <span class="online-dot"></span>
+                </div>
+
+                <div class="chat-content">
+
+                    <div class="chat-top">
+                        <h3>Nigar Məmmədli</h3>
+                        <time>Dünən</time>
+                    </div>
+
+                    <div class="chat-bottom">
+                        <p>Oldu, təşəkkür edirəm.</p>
+                    </div>
+
+                </div>
+
+            </article>
+
+
+            <!-- CHAT -->
+            <article class="chat-item">
+
+                <div class="chat-avatar">
+                    RK
+                </div>
+
+                <div class="chat-content">
+
+                    <div class="chat-top">
+                        <h3>Rauf Kərimov</h3>
+                        <time>Dünən</time>
+                    </div>
+
+                    <div class="chat-bottom">
+                        <p>Fayla baxa bildin?</p>
+                    </div>
+
+                </div>
+
+            </article>
+
+        </section>
+
+
+        <!-- EMPTY STATE -->
+        <section class="empty-state" id="emptyState">
+
+            <div class="empty-icon">
+                <i class="fa-regular fa-comments"></i>
+            </div>
+
+            <h2>Söhbət tapılmadı</h2>
+
+            <p>
+                Axtarışınıza uyğun söhbət yoxdur.
+            </p>
+
+        </section>
+
+
+        <!-- LANGUAGE MENU -->
+        <div class="language-menu" id="languageMenu">
+
+            <button data-language="az">
+                <span>🇦🇿</span>
+                Azərbaycan
+            </button>
+
+            <button data-language="en">
+                <span>🇬🇧</span>
+                English
+            </button>
+
+            <button data-language="ru">
+                <span>🇷🇺</span>
+                Русский
+            </button>
+
+        </div>
+
+
+        <!-- BOTTOM NAVIGATION -->
+        <nav class="bottom-nav">
+
+            <a href="chats.html" class="nav-item active">
+                <i class="fa-solid fa-message"></i>
+                <span>Mesajlar</span>
+            </a>
+
+            <button class="nav-item" id="contactsButton">
+                <i class="fa-solid fa-users"></i>
+                <span>Əməkdaşlar</span>
+            </button>
+
+            <a href="profile.html" class="nav-item">
+                <i class="fa-regular fa-user"></i>
+                <span>Profil</span>
+            </a>
+
+        </nav>
+
+    </main>
+
+</body>
+
+</html>

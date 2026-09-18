@@ -47,7 +47,7 @@ $(document).ready(function () {
             return;
         }
 
-        window.location.href = "./profile.html";
+        window.location.href = "./chats.html";
     });
 
 });
