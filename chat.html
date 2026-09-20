@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+
+<html lang="az">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>DMS | Yazışma</title>
+    <link rel="icon" href="Assets/DMS.png">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+
+    <link rel="stylesheet" href="reset.css">
+    <link rel="stylesheet" href="style.css">
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+
+    <script src="translation.js" defer></script>
+    <script src="dark-mode.js" defer></script>
+    <script src="chat.js" defer></script>
+    
+
+</head>
+
+<body>
+
+    
+    <main class="chat-page">
+
+        <!-- =========================
+         CHAT HEADER
+    ========================== -->
+
+        <header class="chat-header">
+
+            <div class="chat-header-left">
+
+                <button class="back-button" id="backButton" type="button" aria-label="Geri">
+                    <i class="fa-solid fa-arrow-left"></i>
+                </button>
+
+
+                <div class="chat-user-avatar">
+
+                    AM
+
+                    <span class="online-dot"></span>
+
+                </div>
+
+
+                <div class="chat-user-info">
+
+                    <h1 id="chatUserName">
+                        Ahmad Məmmədov
+                    </h1>
+
+                    <span id="chatUserStatus">
+                        onlayn
+                    </span>
+
+                </div>
+
+            </div>
+
+
+            <div class="chat-header-actions">
+
+                <!-- Search -->
+
+                <button class="chat-icon-button" id="chatSearchButton" type="button" aria-label="Axtar">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                </button>
+
+
+                <!-- More -->
+
+                <button class="chat-icon-button" id="chatMoreButton" type="button" aria-label="Daha çox">
+                    <i class="fa-solid fa-ellipsis-vertical"></i>
+                </button>
+
+            </div>
+
+        </header>
+
+
+        <!-- =========================
+         CHAT SEARCH
+    ========================== -->
+
+        <div class="chat-search-box" id="chatSearchBox">
+
+            <i class="fa-solid fa-magnifying-glass"></i>
+
+            <input type="text" id="messageSearch" placeholder="Mesajlarda axtar..." autocomplete="off">
+
+            <button id="closeChatSearch" type="button" aria-label="Axtarışı bağla">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
+        </div>
+
+
+        <!-- =========================
+         MESSAGES
+    ========================== -->
+
+        <section class="messages-area" id="messagesArea">
+
+            <!-- DATE -->
+
+            <div class="message-date">
+
+                <span>
+                    Bu gün
+                </span>
+
+            </div>
+
+
+            <!-- RECEIVED MESSAGE -->
+
+            <div class="message-row received">
+
+                <div class="message-bubble">
+
+                    <p>
+                        Salam, necəsən?
+                    </p>
+
+                    <div class="message-meta">
+
+                        <time>
+                            14:28
+                        </time>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- SENT MESSAGE -->
+
+            <div class="message-row sent">
+
+                <div class="message-bubble">
+
+                    <p>
+                        Salam, yaxşıyam. Sən necəsən?
+                    </p>
+
+                    <div class="message-meta">
+
+                        <time>
+                            14:29
+                        </time>
+
+                        <i class="fa-solid fa-check-double message-read"></i>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- RECEIVED MESSAGE -->
+
+            <div class="message-row received">
+
+                <div class="message-bubble">
+
+                    <p>
+                        Mən də yaxşıyam. Sənə sənədlə bağlı yazırdım.
+                    </p>
+
+                    <div class="message-meta">
+
+                        <time>
+                            14:30
+                        </time>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- RECEIVED MESSAGE -->
+
+            <div class="message-row received">
+
+                <div class="message-bubble">
+
+                    <p>
+                        Sənə sənədi göndərdim.
+                    </p>
+
+                    <div class="message-meta">
+
+                        <time>
+                            14:32
+                        </time>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- SENT MESSAGE -->
+
+            <div class="message-row sent">
+
+                <div class="message-bubble">
+
+                    <p>
+                        Oldu, baxıram.
+                    </p>
+
+                    <div class="message-meta">
+
+                        <time>
+                            14:33
+                        </time>
+
+                        <i class="fa-solid fa-check-double message-read"></i>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- =========================
+         MESSAGE INPUT
+    ========================== -->
+
+        <footer class="message-input-area">
+
+            <div class="message-input-wrapper">
+
+
+                <!-- Attachment -->
+
+                <button class="input-action" id="attachmentButton" type="button" aria-label="Fayl əlavə et">
+                    <i class="fa-solid fa-paperclip"></i>
+                </button>
+
+
+                <!-- Input -->
+
+                <textarea id="messageInput" rows="1" placeholder="Mesaj yaz..." autocomplete="off"></textarea>
+
+
+                <!-- Emoji -->
+
+                <button class="input-action" id="emojiButton" type="button" aria-label="Emoji">
+                    <i class="fa-regular fa-face-smile"></i>
+                </button>
+
+
+                <!-- Send -->
+
+                <button class="send-button" id="sendButton" type="button" aria-label="Göndər">
+                    <i class="fa-solid fa-paper-plane"></i>
+                </button>
+
+            </div>
+
+        </footer>
+
+
+        <!-- =========================
+         CHAT MORE MENU
+    ========================== -->
+
+        <div class="chat-more-menu" id="chatMoreMenu">
+
+            <button type="button" id="muteChatButton">
+
+                <i class="fa-regular fa-bell-slash"></i>
+
+                <span>
+                    Bildirişləri susdur
+                </span>
+
+            </button>
+
+
+            <button type="button" id="clearChatButton">
+
+                <i class="fa-regular fa-trash-can"></i>
+
+                <span>
+                    Söhbəti təmizlə
+                </span>
+
+            </button>
+
+
+            <button type="button" id="blockUserButton">
+
+                <i class="fa-solid fa-ban"></i>
+
+                <span>
+                    Əməkdaşı blokla
+                </span>
+
+            </button>
+
+        </div>
+
+
+        <!-- =========================
+         ATTACHMENT MENU
+    ========================== -->
+
+        <div class="attachment-menu" id="attachmentMenu">
+
+            <button type="button" id="photoButton">
+
+                <i class="fa-regular fa-image"></i>
+
+                <span>
+                    Şəkil
+                </span>
+
+            </button>
+
+
+            <button type="button" id="fileButton">
+
+                <i class="fa-regular fa-file"></i>
+
+                <span>
+                    Fayl
+                </span>
+
+            </button>
+
+        </div>
+
+
+        <!-- Hidden file input -->
+
+        <input type="file" id="fileInput" hidden>
+
+    </main>
+
+</body>
+
+</html>

@@ -1,0 +1,681 @@
+*
+    box-sizing: border-box
+
+html
+    font-size: 16px
+
+body
+    margin: 0
+    font-family: "Inter", sans-serif
+    background: #f5f7fb
+    color: #172033
+
+button
+    border: 0
+    font-family: inherit
+    cursor: pointer
+
+input,
+textarea
+    font-family: inherit
+
+// ==========================================
+// CHAT PAGE
+// ==========================================
+
+.chat-page
+    min-height: 100vh
+    display: flex
+    flex-direction: column
+    background: #f5f7fb
+
+// ==========================================
+// CHAT HEADER
+// ==========================================
+
+.chat-header
+    position: fixed
+    top: 0
+    left: 0
+    right: 0
+    z-index: 1000
+
+    height: 64px
+    padding: 0 16px
+
+    display: flex
+    align-items: center
+    justify-content: space-between
+
+    background: rgba(255, 255, 255, 0.96)
+    border-bottom: 1px solid #e9edf3
+    backdrop-filter: blur(12px)
+
+.chat-header-left
+    min-width: 0
+    display: flex
+    align-items: center
+    gap: 10px
+
+// ==========================================
+// BACK BUTTON
+// ==========================================
+
+.back-button
+    width: 38px
+    height: 38px
+
+    display: flex
+    align-items: center
+    justify-content: center
+
+    border-radius: 12px
+    background: transparent
+    color: #172033
+    font-size: 17px
+
+    transition: background 0.2s ease, color 0.2s ease
+
+    &:hover
+        background: #f0f3f8
+
+    &:active
+        transform: scale(0.95)
+
+// ==========================================
+// USER AVATAR
+// ==========================================
+
+.chat-user-avatar
+    position: relative
+
+    width: 40px
+    height: 40px
+    min-width: 40px
+
+    display: flex
+    align-items: center
+    justify-content: center
+
+    border-radius: 50%
+    background: #173f7a
+    color: #ffffff
+
+    font-size: 13px
+    font-weight: 700
+
+.online-dot
+    position: absolute
+    right: 0
+    bottom: 1px
+
+    width: 10px
+    height: 10px
+
+    border: 2px solid #ffffff
+    border-radius: 50%
+    background: #22c55e
+
+// ==========================================
+// USER INFO
+// ==========================================
+
+.chat-user-info
+    min-width: 0
+    display: flex
+    flex-direction: column
+    gap: 2px
+
+.chat-user-info h1
+    margin: 0
+
+    max-width: 180px
+
+    overflow: hidden
+    text-overflow: ellipsis
+    white-space: nowrap
+
+    color: #172033
+    font-size: 15px
+    font-weight: 700
+
+.chat-user-info span
+    color: #22a06b
+    font-size: 12px
+    font-weight: 500
+
+// ==========================================
+// HEADER ACTIONS
+// ==========================================
+
+.chat-header-actions
+    display: flex
+    align-items: center
+    gap: 4px
+
+.chat-icon-button
+    width: 38px
+    height: 38px
+
+    display: flex
+    align-items: center
+    justify-content: center
+
+    border-radius: 12px
+    background: transparent
+    color: #536176
+
+    font-size: 17px
+
+    transition: background 0.2s ease, color 0.2s ease
+
+    &:hover
+        background: #f0f3f8
+        color: #173f7a
+
+    &:active
+        transform: scale(0.95)
+
+// ==========================================
+// SEARCH
+// ==========================================
+
+.chat-search-box
+    position: fixed
+    top: 72px
+    left: 16px
+    right: 16px
+    z-index: 900
+
+    height: 48px
+    padding: 0 12px
+
+    display: flex
+    align-items: center
+    gap: 10px
+
+    opacity: 0
+    visibility: hidden
+    transform: translateY(-8px)
+
+    background: #ffffff
+    border: 1px solid #e3e8f0
+    border-radius: 14px
+
+    box-shadow: 0 8px 25px rgba(23, 32, 51, 0.08)
+
+    transition: opacity 0.2s ease, visibility 0.2s ease, transform 0.2s ease
+
+.chat-search-box.active
+    opacity: 1
+    visibility: visible
+    transform: translateY(0)
+
+.chat-search-box > i
+    color: #8a95a7
+    font-size: 15px
+
+.chat-search-box input
+    flex: 1
+    min-width: 0
+
+    border: 0
+    outline: 0
+    background: transparent
+
+    color: #172033
+    font-size: 14px
+
+    &::placeholder
+        color: #9aa4b4
+
+.chat-search-box button
+    width: 32px
+    height: 32px
+
+    display: flex
+    align-items: center
+    justify-content: center
+
+    border-radius: 9px
+    background: transparent
+    color: #7b8799
+
+    font-size: 16px
+
+    &:hover
+        background: #f1f4f8
+        color: #172033
+
+// ==========================================
+// MESSAGES AREA
+// ==========================================
+
+.messages-area
+    flex: 1
+
+    width: 100%
+    max-width: 850px
+
+    margin: 0 auto
+
+    padding: 84px 16px 90px
+
+    overflow-y: auto
+    scroll-behavior: smooth
+
+// ==========================================
+// DATE
+// ==========================================
+
+.message-date
+    display: flex
+    justify-content: center
+
+    margin: 10px 0 20px
+
+.message-date span
+    padding: 6px 11px
+
+    border-radius: 10px
+    background: #e9edf3
+
+    color: #6e798a
+    font-size: 11px
+    font-weight: 600
+
+// ==========================================
+// MESSAGE ROW
+// ==========================================
+
+.message-row
+    display: flex
+    width: 100%
+
+    margin-bottom: 8px
+
+.message-row.received
+    justify-content: flex-start
+
+.message-row.sent
+    justify-content: flex-end
+
+// ==========================================
+// MESSAGE BUBBLE
+// ==========================================
+
+.message-bubble
+    max-width: 78%
+    padding: 9px 12px 7px
+
+    border-radius: 16px
+
+    word-break: break-word
+
+.message-row.received .message-bubble
+    border-bottom-left-radius: 5px
+    background: #ffffff
+    border: 1px solid #e7ebf1
+    box-shadow: 0 2px 7px rgba(23, 32, 51, 0.04)
+
+.message-row.sent .message-bubble
+    border-bottom-right-radius: 5px
+    background: #173f7a
+    color: #ffffff
+
+.message-bubble p
+    margin: 0
+
+    font-size: 14px
+    line-height: 1.45
+
+// ==========================================
+// MESSAGE META
+// ==========================================
+
+.message-meta
+    display: flex
+    align-items: center
+    justify-content: flex-end
+    gap: 4px
+
+    margin-top: 3px
+
+.message-meta time
+    font-size: 10px
+
+.message-row.received .message-meta time
+    color: #8993a3
+
+.message-row.sent .message-meta time
+    color: rgba(255, 255, 255, 0.7)
+
+.message-read
+    color: #8fd3ff
+    font-size: 10px
+
+// ==========================================
+// MESSAGE INPUT AREA
+// ==========================================
+
+.message-input-area
+    position: fixed
+    left: 0
+    right: 0
+    bottom: 0
+    z-index: 1000
+
+    padding: 10px 12px
+
+    background: rgba(255, 255, 255, 0.96)
+    border-top: 1px solid #e9edf3
+    backdrop-filter: blur(12px)
+
+.message-input-wrapper
+    width: 100%
+    max-width: 850px
+    min-height: 48px
+
+    margin: 0 auto
+    padding: 5px
+
+    display: flex
+    align-items: flex-end
+    gap: 4px
+
+    background: #f3f5f8
+    border: 1px solid #e1e6ed
+    border-radius: 16px
+
+// ==========================================
+// INPUT ACTION
+// ==========================================
+
+.input-action
+    width: 38px
+    height: 38px
+    min-width: 38px
+
+    display: flex
+    align-items: center
+    justify-content: center
+
+    border-radius: 11px
+    background: transparent
+    color: #697589
+
+    font-size: 17px
+
+    transition: background 0.2s ease, color 0.2s ease
+
+    &:hover
+        background: #e7ebf1
+        color: #173f7a
+
+    &:active
+        transform: scale(0.94)
+
+// ==========================================
+// TEXTAREA
+// ==========================================
+
+#messageInput
+    flex: 1
+
+    min-width: 0
+    min-height: 38px
+    max-height: 120px
+
+    padding: 9px 4px
+
+    resize: none
+    overflow-y: auto
+
+    border: 0
+    outline: 0
+    background: transparent
+
+    color: #172033
+    font-size: 14px
+    line-height: 20px
+
+    &::placeholder
+        color: #8d98a9
+
+// ==========================================
+// SEND BUTTON
+// ==========================================
+
+.send-button
+    width: 38px
+    height: 38px
+    min-width: 38px
+
+    display: flex
+    align-items: center
+    justify-content: center
+
+    border-radius: 12px
+    background: #173f7a
+    color: #ffffff
+
+    font-size: 15px
+
+    transition: background 0.2s ease, transform 0.2s ease
+
+    &:hover
+        background: #123461
+
+    &:active
+        transform: scale(0.93)
+
+// ==========================================
+// MORE MENU
+// ==========================================
+
+.chat-more-menu,
+.attachment-menu
+    position: fixed
+    right: 14px
+    z-index: 1200
+
+    width: 220px
+
+    padding: 6px
+
+    opacity: 0
+    visibility: hidden
+    transform: translateY(-6px) scale(0.98)
+
+    background: #ffffff
+    border: 1px solid #e4e8ef
+    border-radius: 14px
+
+    box-shadow: 0 12px 35px rgba(23, 32, 51, 0.14)
+
+    transition: opacity 0.2s ease, visibility 0.2s ease, transform 0.2s ease
+
+.chat-more-menu
+    top: 58px
+
+.attachment-menu
+    bottom: 68px
+    left: 12px
+    right: auto
+    width: 160px
+
+.chat-more-menu.active,
+.attachment-menu.active
+    opacity: 1
+    visibility: visible
+    transform: translateY(0) scale(1)
+
+.chat-more-menu button,
+.attachment-menu button
+    width: 100%
+    min-height: 44px
+
+    display: flex
+    align-items: center
+    gap: 11px
+
+    padding: 9px 11px
+
+    border-radius: 10px
+    background: transparent
+    color: #344054
+
+    text-align: left
+    font-size: 13px
+
+    &:hover
+        background: #f3f5f8
+
+.chat-more-menu button i,
+.attachment-menu button i
+    width: 18px
+    color: #64748b
+    text-align: center
+
+#blockUserButton
+    color: #dc3545
+
+    i
+        color: #dc3545
+
+// ==========================================
+// DARK MODE
+// ==========================================
+
+body.dark-mode
+    background: #0f1724
+    color: #edf2f7
+
+body.dark-mode .chat-page
+    background: #0f1724
+
+body.dark-mode .chat-header
+    background: rgba(18, 27, 42, 0.96)
+    border-color: #273449
+
+body.dark-mode .back-button,
+body.dark-mode .chat-icon-button
+    color: #d5dce7
+
+    &:hover
+        background: #202c3f
+        color: #ffffff
+
+body.dark-mode .chat-user-info h1
+    color: #f1f5f9
+
+body.dark-mode .chat-user-avatar .online-dot
+    border-color: #121b2a
+
+body.dark-mode .message-date span
+    background: #202c3f
+    color: #9ba8bb
+
+body.dark-mode .message-row.received .message-bubble
+    background: #182337
+    border-color: #29364b
+    color: #edf2f7
+
+body.dark-mode .message-row.received .message-meta time
+    color: #8d9aae
+
+body.dark-mode .message-input-area
+    background: rgba(18, 27, 42, 0.96)
+    border-color: #273449
+
+body.dark-mode .message-input-wrapper
+    background: #182337
+    border-color: #29364b
+
+body.dark-mode #messageInput
+    color: #edf2f7
+
+    &::placeholder
+        color: #7f8da1
+
+body.dark-mode .input-action
+    color: #9aa7ba
+
+    &:hover
+        background: #243148
+        color: #ffffff
+
+body.dark-mode .chat-search-box
+    background: #182337
+    border-color: #29364b
+
+body.dark-mode .chat-search-box input
+    color: #edf2f7
+
+body.dark-mode .chat-search-box button:hover
+    background: #243148
+
+body.dark-mode .chat-more-menu,
+body.dark-mode .attachment-menu
+    background: #182337
+    border-color: #29364b
+
+body.dark-mode .chat-more-menu button,
+body.dark-mode .attachment-menu button
+    color: #d5dce7
+
+    &:hover
+        background: #243148
+
+// ==========================================
+// MOBILE
+// ==========================================
+
+@media (max-width: 480px)
+
+    .chat-header
+        padding: 0 10px
+
+    .chat-user-info h1
+        max-width: 145px
+
+    .chat-user-avatar
+        width: 38px
+        height: 38px
+        min-width: 38px
+
+    .back-button,
+    .chat-icon-button
+        width: 36px
+        height: 36px
+
+    .messages-area
+        padding-left: 10px
+        padding-right: 10px
+        padding-bottom: 88px
+
+    .message-bubble
+        max-width: 84%
+
+    .message-bubble p
+        font-size: 13px
+
+    .message-input-area
+        padding: 8px
+
+// ==========================================
+// TABLET / DESKTOP
+// ==========================================
+
+@media (min-width: 768px)
+
+    .messages-area
+        padding-left: 24px
+        padding-right: 24px
+
+    .message-input-area
+        padding-left: 20px
+        padding-right: 20px
+
+    .message-bubble
+        max-width: 65%

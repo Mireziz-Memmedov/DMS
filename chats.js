@@ -426,4 +426,19 @@ $(document).ready(function () {
 
     showPage(savedPage || "chats");
 
+    // =========================
+    // OPEN CHAT
+    // =========================
+
+    $(".chat-item").on("click", function () {
+
+        const userName = $(this)
+            .find(".chat-top h3")
+            .text()
+            .trim();
+
+        window.location.href =
+            "chat.html?user=" + encodeURIComponent(userName);
+    });
+
 });
