@@ -29,12 +29,22 @@ button
 a
     text-decoration: none
     color: inherit
-    cursor: pointer
 
-.chats-page
+// =========================
+// MAIN PAGE
+// =========================
+
+.dms-page
     width: 100%
     min-height: 100vh
     padding: 72px 18px 85px
+
+.page-section
+    display: none
+    width: 100%
+
+.page-section.active
+    display: block
 
 // =========================
 // TOP BAR
@@ -98,6 +108,7 @@ a
     display: flex
     align-items: center
     justify-content: center
+    gap: 5px
     border: 1px solid #e2e6ee
     border-radius: 11px
     background: #fff
@@ -179,6 +190,7 @@ a
 
     h1
         margin: 0
+        color: #172033
         font-size: 23px
         font-weight: 700
         letter-spacing: -0.6px
@@ -314,16 +326,23 @@ a
 // EMPTY STATE
 // =========================
 
-.empty-state
+.empty-state,
+.contacts-empty
     max-width: 540px
     margin: 70px auto 0
-    display: none
+    display: flex
     flex-direction: column
     align-items: center
     text-align: center
 
+.empty-state
+    display: none
+
     &.active
         display: flex
+
+.empty-state,
+.contacts-empty
 
     h2
         margin: 14px 0 5px
@@ -344,6 +363,257 @@ a
     background: #edf0f5
     color: #8992a5
     font-size: 23px
+
+// =========================
+// PROFILE
+// =========================
+
+.profile-page
+    width: 100%
+    padding: 0
+
+.profile-container
+    width: 100%
+    max-width: 520px
+    margin: 0 auto
+
+.profile-card
+    display: flex
+    flex-direction: column
+    align-items: center
+    padding: 25px 20px 28px
+    margin-bottom: 15px
+    border: 1px solid #e2e6ee
+    border-radius: 18px
+    background: #fff
+    box-shadow: 0 8px 25px rgba(23, 32, 51, 0.05)
+
+.profile-avatar
+    position: relative
+    margin-bottom: 13px
+
+.avatar-circle
+    width: 92px
+    height: 92px
+    display: flex
+    align-items: center
+    justify-content: center
+    overflow: hidden
+    border-radius: 50%
+    background: #172033
+    color: #fff
+    font-size: 32px
+
+    img
+        width: 100%
+        height: 100%
+        display: none
+        object-fit: cover
+
+        &.active
+            display: block
+
+.avatar-edit
+    position: absolute
+    right: -2px
+    bottom: -2px
+    width: 31px
+    height: 31px
+    display: flex
+    align-items: center
+    justify-content: center
+    border: 3px solid #fff
+    border-radius: 50%
+    background: #172033
+    color: #fff
+    font-size: 11px
+
+    &:active
+        transform: scale(0.94)
+
+.profile-name
+    text-align: center
+
+    h2
+        margin: 0
+        font-size: 20px
+        font-weight: 700
+        letter-spacing: -0.3px
+
+    p
+        margin: 5px 0 0
+        color: #8992a5
+        font-size: 12px
+
+.profile-section
+    margin-bottom: 15px
+    overflow: hidden
+    border: 1px solid #e2e6ee
+    border-radius: 17px
+    background: #fff
+    box-shadow: 0 6px 20px rgba(23, 32, 51, 0.04)
+
+.section-title
+    display: flex
+    align-items: center
+    gap: 9px
+    padding: 15px 16px 11px
+    color: #172033
+    font-size: 12px
+    font-weight: 700
+
+    i
+        font-size: 13px
+
+.profile-item
+    min-height: 63px
+    display: flex
+    align-items: center
+    gap: 12px
+    padding: 10px 16px
+    border-top: 1px solid #edf0f4
+
+.item-icon,
+.action-icon
+    display: flex
+    align-items: center
+    justify-content: center
+    flex-shrink: 0
+    background: #f1f3f7
+    color: #172033
+
+.item-icon
+    width: 35px
+    height: 35px
+    border-radius: 10px
+    font-size: 13px
+
+.item-content
+    min-width: 0
+    display: flex
+    flex-direction: column
+    gap: 3px
+
+.item-label
+    color: #8992a5
+    font-size: 10px
+    font-weight: 500
+
+.item-value
+    overflow: hidden
+    color: #172033
+    font-size: 13px
+    font-weight: 600
+    text-overflow: ellipsis
+    white-space: nowrap
+
+.profile-action
+    width: 100%
+    min-height: 67px
+    display: flex
+    align-items: center
+    gap: 12px
+    padding: 10px 16px
+    background: transparent
+    color: #172033
+    text-align: left
+    border-top: 1px solid #edf0f4
+    transition: background 0.2s ease
+
+    &:active
+        background: #f4f6f9
+
+.action-icon
+    width: 37px
+    height: 37px
+    border-radius: 10px
+    font-size: 13px
+
+.action-content
+    min-width: 0
+    flex: 1
+    display: flex
+    flex-direction: column
+    gap: 3px
+
+    span
+        font-size: 13px
+        font-weight: 600
+
+    small
+        overflow: hidden
+        color: #8992a5
+        font-size: 10px
+        font-weight: 400
+        text-overflow: ellipsis
+        white-space: nowrap
+
+.action-arrow
+    flex-shrink: 0
+    color: #a0a7b5
+    font-size: 10px
+
+.logout-button
+    width: 100%
+    height: 50px
+    display: flex
+    align-items: center
+    justify-content: center
+    gap: 9px
+    margin: 3px 0 25px
+    border: 1px solid #e2e6ee
+    border-radius: 13px
+    background: #fff
+    color: #172033
+    font-size: 13px
+    font-weight: 600
+    transition: all 0.2s ease
+
+    &:active
+        transform: scale(0.98)
+
+.app-info
+    display: flex
+    flex-direction: column
+    align-items: center
+    gap: 4px
+    margin-bottom: 20px
+    color: #8992a5
+    text-align: center
+
+    strong
+        color: #172033
+        font-size: 12px
+
+    span
+        font-size: 9px
+
+    small
+        font-size: 8px
+
+.app-logo
+    width: 38px
+    height: 38px
+    display: flex
+    align-items: center
+    justify-content: center
+    margin-bottom: 3px
+    border-radius: 11px
+    background: #172033
+    color: #fff
+    font-size: 15px
+
+.profile-footer
+    display: flex
+    align-items: center
+    justify-content: center
+    gap: 7px
+    padding: 15px 0 3px
+    color: #a0a7b5
+    font-size: 9px
+
+.footer-dot
+    font-size: 7px
 
 // =========================
 // LANGUAGE MENU
@@ -378,7 +648,6 @@ a
         color: #394357
         text-align: left
         font-size: 12px
-        cursor: pointer
 
         &:hover
             background: #f1f3f7
@@ -452,7 +721,9 @@ body.dark-mode
         background: #0d1117
         border-color: #252c38
 
-    .brand-icon
+    .brand-icon,
+    .avatar-circle,
+    .app-logo
         background: #f1f4f8
         color: #0d1117
 
@@ -478,6 +749,7 @@ body.dark-mode
                 color: #f1f4f8
 
     .page-header
+
         h1
             color: #f1f4f8
 
@@ -505,6 +777,7 @@ body.dark-mode
         border-color: #0d1117
 
     .chat-top
+
         h3
             color: #f1f4f8
 
@@ -515,6 +788,48 @@ body.dark-mode
     .empty-icon
         background: #202733
         color: #aab2c0
+
+    .profile-card,
+    .profile-section
+        border-color: #252c38
+        background: #161c25
+        box-shadow: none
+
+    .profile-name
+
+        h2
+            color: #f1f4f8
+
+    .section-title
+        color: #f1f4f8
+
+    .profile-item,
+    .profile-action
+        border-color: #252c38
+
+    .item-icon,
+    .action-icon
+        background: #202733
+        color: #f1f4f8
+
+    .item-value,
+    .profile-action
+        color: #f1f4f8
+
+    .profile-action
+
+        &:active
+            background: #202733
+
+    .logout-button
+        border-color: #252c38
+        background: #161c25
+        color: #f1f4f8
+
+    .app-info
+
+        strong
+            color: #f1f4f8
 
     .language-menu
         border-color: #252c38
@@ -548,7 +863,7 @@ body.dark-mode
 
 @media (min-width: 600px)
 
-    .chats-page
+    .dms-page
         padding: 88px 35px 95px
 
     .top-bar
@@ -569,6 +884,17 @@ body.dark-mode
     .chat-item
         padding: 11px 5px
 
+    .profile-container
+        max-width: 540px
+
+    .profile-card
+        padding: 30px 20px 32px
+
+    .avatar-circle
+        width: 100px
+        height: 100px
+        font-size: 35px
+
     .language-menu
         top: 68px
         right: 35px
@@ -585,7 +911,7 @@ body.dark-mode
         overflow-x: hidden
         overflow-y: auto
 
-    .chats-page
+    .dms-page
         min-height: 100dvh
         padding: 72px 18px 85px
 
@@ -599,6 +925,7 @@ body.dark-mode
         font-size: 16px
 
     .brand-name
+
         span
             font-size: 17px
 
@@ -608,12 +935,14 @@ body.dark-mode
     .icon-button
         width: 38px
         height: 38px
+        padding: 0
         border-radius: 11px
 
     .top-actions
         gap: 5px
 
     .page-header
+
         h1
             font-size: 21px
 
@@ -630,6 +959,7 @@ body.dark-mode
         height: 45px
 
     .chat-top
+
         h3
             font-size: 12px
 
@@ -637,8 +967,93 @@ body.dark-mode
             font-size: 8px
 
     .chat-bottom
+
         p
             font-size: 10px
+
+    .profile-card
+        padding: 21px 15px 23px
+        margin-bottom: 12px
+        border-radius: 15px
+
+    .avatar-circle
+        width: 78px
+        height: 78px
+        font-size: 27px
+
+    .avatar-edit
+        width: 28px
+        height: 28px
+        font-size: 10px
+
+    .profile-name
+
+        h2
+            font-size: 18px
+
+        p
+            margin-top: 4px
+            font-size: 11px
+
+    .profile-section
+        margin-bottom: 12px
+        border-radius: 14px
+
+    .section-title
+        padding: 13px 14px 9px
+        font-size: 11px
+
+    .profile-item
+        min-height: 57px
+        padding: 8px 14px
+        gap: 10px
+
+    .item-icon
+        width: 33px
+        height: 33px
+        border-radius: 9px
+        font-size: 12px
+
+    .item-label
+        font-size: 9px
+
+    .item-value
+        font-size: 12px
+
+    .profile-action
+        min-height: 60px
+        padding: 8px 14px
+        gap: 10px
+
+    .action-icon
+        width: 34px
+        height: 34px
+        border-radius: 9px
+        font-size: 12px
+
+    .action-content
+
+        span
+            font-size: 12px
+
+        small
+            font-size: 9px
+
+    .action-arrow
+        font-size: 9px
+
+    .logout-button
+        height: 47px
+        margin: 2px 0 20px
+        border-radius: 12px
+        font-size: 12px
+
+    .app-info
+        margin-bottom: 10px
+
+    .profile-footer
+        padding: 10px 0 2px
+        font-size: 8px
 
     .bottom-nav
         height: 68px
