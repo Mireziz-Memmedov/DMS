@@ -437,6 +437,9 @@ body.dark-mode .language-menu button:active {
   .brand-name small {
     font-size: 8px;
   }
+  .icon-button span, .icon-button i {
+    font-size: 10px;
+  }
   .login-container {
     max-width: 400px;
     justify-content: center;
@@ -1422,6 +1425,9 @@ body.dark-mode .nav-item.active {
   }
   .brand-name small {
     font-size: 8px;
+  }
+  .icon-button span, .icon-button i {
+    font-size: 10px;
   }
   .top-actions {
     gap: 5px;
