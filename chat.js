@@ -373,4 +373,66 @@ $(document).ready(function () {
 
     });
 
+    // =========================
+    // EMOJI MENU
+    // =========================
+
+    $("#emojiButton").on("click", function (event) {
+
+        event.stopPropagation();
+
+        $("#emojiMenu").toggleClass("active");
+
+        $("#chatMoreMenu").removeClass("active");
+        $("#attachmentMenu").removeClass("active");
+
+    });
+
+
+    // =========================
+    // SELECT EMOJI
+    // =========================
+
+    $(".emoji-item").on("click", function (event) {
+
+        event.stopPropagation();
+
+        const emoji = $(this).text();
+        const textarea = $("#messageInput")[0];
+
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+
+        const text = textarea.value;
+
+        textarea.value =
+            text.substring(0, start) +
+            emoji +
+            text.substring(end);
+
+        textarea.selectionStart = start + emoji.length;
+        textarea.selectionEnd = start + emoji.length;
+
+        $("#messageInput").trigger("input");
+
+        textarea.focus();
+
+    });
+
+
+    // =========================
+    // CLOSE EMOJI MENU
+    // =========================
+
+    $(document).on("click", function () {
+
+        $("#emojiMenu").removeClass("active");
+
+    });
+
+    $("#emojiMenu").on("click", function (event) {
+
+        event.stopPropagation();
+
+    });
 });

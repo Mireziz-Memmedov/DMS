@@ -544,6 +544,54 @@ textarea
         color: #dc3545
 
 // ==========================================
+// EMOJI MENU
+// ==========================================
+
+.emoji-menu
+    position: absolute
+    right: 18px
+    bottom: 75px
+
+    width: 260px
+    padding: 12px
+
+    display: none
+    grid-template-columns: repeat(5, 1fr)
+    gap: 6px
+
+    background: #ffffff
+    border: 1px solid #e5e9f0
+    border-radius: 16px
+
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12)
+
+    z-index: 1200
+
+    &.active
+        display: grid
+
+.emoji-item
+    width: 42px
+    height: 42px
+
+    display: flex
+    align-items: center
+    justify-content: center
+
+    border: 0
+    background: transparent
+    border-radius: 10px
+
+    font-size: 23px
+    cursor: pointer
+
+    transition: background 0.2s ease, transform 0.2s ease
+
+    &:hover
+        background: #f1f4f8
+        transform: scale(1.1)
+
+// ==========================================
 // DARK MODE
 // ==========================================
 
@@ -624,6 +672,14 @@ body.dark-mode .chat-more-menu button,
 body.dark-mode .attachment-menu button
     color: #d5dce7
 
+    &:hover
+        background: #243148
+
+body.dark-mode .emoji-menu
+    background: #182337
+    border-color: #29364b
+
+body.dark-mode .emoji-item
     &:hover
         background: #243148
 

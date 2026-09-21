@@ -161,6 +161,9 @@ a
         &::placeholder
             color: #a0a7b5
 
+    button *
+            cursor: pointer
+
     button
         width: 30px
         height: 30px
@@ -171,7 +174,6 @@ a
         background: transparent
         color: #8992a5
         font-size: 14px
-        cursor: pointer
 
         &:hover
             color: #172033
@@ -200,6 +202,9 @@ a
         color: #8992a5
         font-size: 11px
 
+.new-chat-button *
+    cursor: pointer
+
 .new-chat-button
     width: 42px
     height: 42px
@@ -211,7 +216,6 @@ a
     background: #172033
     color: #fff
     font-size: 14px
-    cursor: pointer
     transition: transform 0.2s ease, background 0.2s ease
 
     &:hover
@@ -229,6 +233,9 @@ a
     max-width: 540px
     margin: 0 auto
 
+.chat-item *
+    cursor: pointer
+
 .chat-item
     min-height: 76px
     padding: 10px 4px
@@ -244,6 +251,19 @@ a
 
     &:active
         background: #e5e9ef
+
+.chat-item
+    user-select: none
+    -webkit-user-select: none
+    -moz-user-select: none
+    -ms-user-select: none
+    cursor: pointer
+
+    *
+        user-select: none
+        -webkit-user-select: none
+        -moz-user-select: none
+        -ms-user-select: none
 
 .chat-avatar
     width: 48px
@@ -413,6 +433,9 @@ a
         &.active
             display: block
 
+.avatar-edit *
+    cursor: pointer
+
 .avatar-edit
     position: absolute
     right: -2px
@@ -506,6 +529,9 @@ a
     font-weight: 600
     text-overflow: ellipsis
     white-space: nowrap
+
+.profile-action *
+    cursor: pointer
 
 .profile-action
     width: 100%
@@ -675,6 +701,9 @@ a
     background: rgba(255, 255, 255, 0.96)
     backdrop-filter: blur(12px)
 
+.nav-item *
+    cursor: pointer
+
 .nav-item
     min-width: 70px
     height: 52px
@@ -688,7 +717,6 @@ a
     background: transparent
     color: #8992a5
     font-size: 17px
-    cursor: pointer
     transition: background 0.2s ease, color 0.2s ease
 
     span

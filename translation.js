@@ -59,7 +59,14 @@ $(document).ready(function () {
 
             "chats.messages": "Mesajlar",
             "chats.employees": "Əməkdaşlar",
-            "chats.profile": "Profil"
+            "chats.profile": "Profil",
+
+            // CONTACTS
+
+            "contacts.title": "Əməkdaşlar",
+            "contacts.subtitle": "DMS əməkdaşları",
+            "contacts.emptyTitle": "Əməkdaşlar",
+            "contacts.emptyText": "Əməkdaş siyahısı backend qoşulduqdan sonra burada görünəcək."
         },
 
         en: {
@@ -119,7 +126,14 @@ $(document).ready(function () {
 
             "chats.messages": "Messages",
             "chats.employees": "Employees",
-            "chats.profile": "Profile"
+            "chats.profile": "Profile",
+
+            // EN
+
+            "contacts.title": "Employees",
+            "contacts.subtitle": "DMS employees",
+            "contacts.emptyTitle": "Employees",
+            "contacts.emptyText": "The employee list will appear here after the backend is connected."
         },
 
         ru: {
@@ -179,7 +193,14 @@ $(document).ready(function () {
 
             "chats.messages": "Сообщения",
             "chats.employees": "Сотрудники",
-            "chats.profile": "Профиль"
+            "chats.profile": "Профиль",
+
+            // RU
+
+            "contacts.title": "Сотрудники",
+            "contacts.subtitle": "Сотрудники DMS",
+            "contacts.emptyTitle": "Сотрудники",
+            "contacts.emptyText": "Список сотрудников появится здесь после подключения бэкенда."
         }
 
     };
