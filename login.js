@@ -75,9 +75,9 @@ $(document).ready(function () {
             error: function (xhr) {
 
                 if (xhr.status === 401) {
-                    alert("İstifadəçi adı və ya şifrə yanlışdır.");
+                    alert(translations[currentLanguage]["login.invalidCredentials"]);
                 } else {
-                    alert("Giriş zamanı xəta baş verdi.");
+                    alert(translations[currentLanguage]["login.error"]);
                 }
             }
 

@@ -1,6 +1,6 @@
 $(document).ready(function () {
 
-    const translations = {
+    window.translations = {
 
         az: {
             // LOGIN
@@ -16,6 +16,8 @@ $(document).ready(function () {
             "login.noAccount": "Hesabınız yoxdur?",
             "login.register": "Qeydiyyatdan keçin",
             "login.secure": "Təhlükəsiz mesajlaşma sistemi",
+            "login.invalidCredentials": "İstifadəçi adı və ya şifrə yanlışdır",
+            "login.error": "Giriş zamanı xəta baş verdi",
 
             // PROFILE
             "profile.title": "Profil",
@@ -83,6 +85,8 @@ $(document).ready(function () {
             "login.noAccount": "Don't have an account?",
             "login.register": "Create an account",
             "login.secure": "Secure messaging system",
+            "login.invalidCredentials": "Incorrect username or password",
+            "login.error": "An error occurred during login",
 
             // PROFILE
             "profile.title": "Profile",
@@ -150,6 +154,8 @@ $(document).ready(function () {
             "login.noAccount": "Нет аккаунта?",
             "login.register": "Зарегистрироваться",
             "login.secure": "Безопасная система обмена сообщениями",
+            "login.invalidCredentials": "Неверное имя пользователя или пароль",
+            "login.error": "Произошла ошибка при входе",
 
             // PROFILE
             "profile.title": "Профиль",
@@ -206,7 +212,7 @@ $(document).ready(function () {
     };
 
 
-    let currentLanguage =
+    window.currentLanguage =
         localStorage.getItem("dmsLanguage") || "az";
 
 
