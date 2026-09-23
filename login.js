@@ -29,7 +29,8 @@ $(document).ready(function () {
 
     });
 
-    //Daxil ol clik edende profil html acilir
+
+    // Daxil ol
     $('#loginButton').click(function (e) {
 
         e.preventDefault();
@@ -47,7 +48,41 @@ $(document).ready(function () {
             return;
         }
 
-        window.location.href = "./chats.html";
+
+        // Backend login
+        $.ajax({
+
+            url: 'https://dms-be-fr6n.onrender.com/api/login/',
+            type: 'POST',
+
+            contentType: 'application/json',
+
+            data: JSON.stringify({
+                username: username,
+                password: password
+            }),
+
+            success: function (response) {
+
+                // JWT tokenləri yadda saxla
+                localStorage.setItem('accessToken', response.access);
+                localStorage.setItem('refreshToken', response.refresh);
+
+                // Profil / chats səhifəsinə keç
+                window.location.href = "./chats.html";
+            },
+
+            error: function (xhr) {
+
+                if (xhr.status === 401) {
+                    alert("İstifadəçi adı və ya şifrə yanlışdır.");
+                } else {
+                    alert("Giriş zamanı xəta baş verdi.");
+                }
+            }
+
+        });
+
     });
 
 });
