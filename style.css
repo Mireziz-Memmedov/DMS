@@ -848,6 +848,90 @@ a {
   font-weight: 600;
 }
 
+.contacts-list {
+  width: 100%;
+  max-width: 540px;
+  margin: 0 auto;
+}
+
+.contact-item * {
+  cursor: pointer;
+}
+
+.contact-item {
+  min-height: 76px;
+  padding: 10px 4px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid #e8ecf2;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+.contact-item:hover {
+  background: #eef1f5;
+}
+.contact-item:active {
+  background: #e5e9ef;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+.contact-item * {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+.contact-avatar {
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #172033;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.contact-info {
+  min-width: 0;
+  flex: 1;
+}
+
+.contact-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.contact-name {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: #172033;
+  font-size: 13px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.contact-position {
+  min-width: 0;
+  margin: 5px 0 0;
+  overflow: hidden;
+  color: #8992a5;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .empty-state,
 .contacts-empty {
   max-width: 540px;
@@ -1315,6 +1399,22 @@ body.dark-mode .chat-item:hover {
 body.dark-mode .chat-item:active {
   background: #202733;
 }
+body.dark-mode .contact-item {
+  border-color: #252c38;
+}
+body.dark-mode .contact-item:hover {
+  background: #161c25;
+}
+body.dark-mode .contact-item:active {
+  background: #202733;
+}
+body.dark-mode .contact-avatar {
+  background: #f1f4f8;
+  color: #0d1117;
+}
+body.dark-mode .contact-name {
+  color: #f1f4f8;
+}
 body.dark-mode .chat-avatar {
   background: #f1f4f8;
   color: #0d1117;
@@ -1476,6 +1576,20 @@ body.dark-mode .nav-item.active {
   .chat-item {
     min-height: 72px;
     padding: 9px 2px;
+  }
+  .contact-item {
+    min-height: 72px;
+    padding: 9px 2px;
+  }
+  .contact-avatar {
+    width: 45px;
+    height: 45px;
+  }
+  .contact-name {
+    font-size: 12px;
+  }
+  .contact-position {
+    font-size: 10px;
   }
   .chat-avatar {
     width: 45px;

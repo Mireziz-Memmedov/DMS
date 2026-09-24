@@ -1,6 +1,98 @@
 $(document).ready(function () {
 
     // =========================
+    // LOAD EMPLOYEES
+    // =========================
+
+    function loadEmployees() {
+
+        const token = localStorage.getItem("accessToken");
+
+        if (!token) {
+            return;
+        }
+
+        $.ajax({
+
+            url: "https://dms-be-fr6n.onrender.com/api/employees/",
+            type: "GET",
+
+            headers: {
+                "Authorization": "Bearer " + token
+            },
+
+            success: function (employees) {
+
+                // console.log("Əməkdaşlar:", employees);
+
+                $("#contactsList").empty();
+
+                if (employees.length === 0) {
+
+                    $("#contactsEmptyState").addClass("active");
+
+                    return;
+                }
+
+                $("#contactsEmptyState").removeClass("active");
+
+                employees.forEach(function (employee) {
+
+                    const fullName =
+                        `${employee.first_name || ""} ${employee.last_name || ""}`.trim();
+
+                    const name =
+                        fullName || employee.username;
+
+                    const contact = $("<div>")
+                        .addClass("contact-item")
+                        .attr("data-user-id", employee.id);
+
+                    const avatar = $("<div>")
+                        .addClass("contact-avatar")
+                        .text(name.charAt(0).toUpperCase());
+
+                    const info = $("<div>")
+                        .addClass("contact-info");
+
+                    const top = $("<div>")
+                        .addClass("contact-top");
+
+                    const contactName = $("<h3>")
+                        .addClass("contact-name")
+                        .text(name);
+
+                    const position = $("<p>")
+                        .addClass("contact-position")
+                        .text(employee.position || "DMS istifadəçisi");
+
+                    top.append(contactName);
+                    info.append(top);
+                    info.append(position);
+
+                    contact.append(avatar);
+                    contact.append(info);
+
+                    $("#contactsList").append(contact);
+
+                });
+
+            },
+
+            error: function (xhr) {
+
+                console.log(
+                    "Əməkdaşlar yüklənmədi:",
+                    xhr.responseText
+                );
+
+            }
+
+        });
+
+    }
+
+    // =========================
     // PAGE NAVIGATION
     // =========================
 
@@ -50,6 +142,8 @@ $(document).ready(function () {
                 .addClass("active");
 
             $("#searchButton").show();
+
+            loadEmployees();
 
         }
 
