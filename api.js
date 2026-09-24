@@ -76,6 +76,7 @@ function logoutUser() {
     localStorage.removeItem("accessToken");
     localStorage.removeItem("refreshToken");
     localStorage.removeItem("currentUser");
+    localStorage.removeItem("dmsCurrentPage");
 
-    window.location.href = "./login.html";
+    window.location.href = "./index.html";
 }

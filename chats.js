@@ -6,35 +6,14 @@ $(document).ready(function () {
 
     function loadEmployees() {
 
-        const token = localStorage.getItem("accessToken");
+        apiRequest({
 
-        if (!token) {
-            return;
-        }
-
-        $.ajax({
-
-            url: "https://dms-be-fr6n.onrender.com/api/employees/",
+            url: API_URL + "/api/employees/",
             type: "GET",
-
-            headers: {
-                "Authorization": "Bearer " + token
-            },
 
             success: function (employees) {
 
-                // console.log("Əməkdaşlar:", employees);
-
                 $("#contactsList").empty();
-
-                if (employees.length === 0) {
-
-                    $("#contactsEmptyState").addClass("active");
-
-                    return;
-                }
-
-                $("#contactsEmptyState").removeClass("active");
 
                 employees.forEach(function (employee) {
 
@@ -67,6 +46,7 @@ $(document).ready(function () {
                         .text(employee.position || "DMS istifadəçisi");
 
                     top.append(contactName);
+
                     info.append(top);
                     info.append(position);
 
@@ -92,6 +72,7 @@ $(document).ready(function () {
 
     }
 
+
     // =========================
     // PAGE NAVIGATION
     // =========================
@@ -111,7 +92,6 @@ $(document).ready(function () {
         $(".contact-item").show();
 
         $("#emptyState").removeClass("active");
-        $("#contactsEmptyState").removeClass("active");
 
 
         // =========================
@@ -194,7 +174,7 @@ $(document).ready(function () {
 
     $("#searchButton").on("click", function () {
 
-        // Profilə search düşməsin
+        // PROFİLDƏ SEARCH YOXDUR
         if ($("#profilePage").hasClass("active")) {
             return;
         }
@@ -221,8 +201,6 @@ $(document).ready(function () {
         $(".contact-item").show();
 
         $("#emptyState").removeClass("active");
-
-        $("#contactsEmptyState").removeClass("active");
 
     });
 
@@ -298,9 +276,6 @@ $(document).ready(function () {
 
         else if ($("#contactsPage").hasClass("active")) {
 
-            let found = false;
-
-
             $(".contact-item").each(function () {
 
                 const name = $(this)
@@ -308,20 +283,18 @@ $(document).ready(function () {
                     .text()
                     .toLowerCase();
 
-                const username = $(this)
-                    .find(".contact-username")
+                const position = $(this)
+                    .find(".contact-position")
                     .text()
                     .toLowerCase();
 
 
                 if (
                     name.includes(value) ||
-                    username.includes(value)
+                    position.includes(value)
                 ) {
 
                     $(this).show();
-
-                    found = true;
 
                 } else {
 
@@ -330,17 +303,6 @@ $(document).ready(function () {
                 }
 
             });
-
-
-            if (value !== "" && !found) {
-
-                $("#contactsEmptyState").addClass("active");
-
-            } else {
-
-                $("#contactsEmptyState").removeClass("active");
-
-            }
 
         }
 
@@ -364,12 +326,13 @@ $(document).ready(function () {
 
     $(".chat-item").on("click", function () {
 
-        const name = $(this)
+        const userName = $(this)
             .find(".chat-top h3")
             .text()
             .trim();
 
-        console.log("Söhbət açıldı:", name);
+        window.location.href =
+            "chat.html?user=" + encodeURIComponent(userName);
 
     });
 
@@ -504,11 +467,8 @@ $(document).ready(function () {
 
     $("#logoutButton").on("click", function () {
 
-        localStorage.removeItem("currentUser");
-        localStorage.removeItem("selectedLanguage");
-        localStorage.removeItem("dmsCurrentPage");
+        logoutUser();
 
-        window.location.href = "./index.html";
     });
 
 
@@ -516,23 +476,9 @@ $(document).ready(function () {
     // INITIAL PAGE
     // =========================
 
-    const savedPage = localStorage.getItem("dmsCurrentPage");
+    const savedPage =
+        localStorage.getItem("dmsCurrentPage");
 
     showPage(savedPage || "chats");
-
-    // =========================
-    // OPEN CHAT
-    // =========================
-
-    $(".chat-item").on("click", function () {
-
-        const userName = $(this)
-            .find(".chat-top h3")
-            .text()
-            .trim();
-
-        window.location.href =
-            "chat.html?user=" + encodeURIComponent(userName);
-    });
 
 });
