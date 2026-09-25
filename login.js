@@ -65,10 +65,23 @@ $(document).ready(function () {
             success: function (response) {
 
                 // JWT tokenləri yadda saxla
-                localStorage.setItem('accessToken', response.access);
-                localStorage.setItem('refreshToken', response.refresh);
+                localStorage.setItem(
+                    'accessToken',
+                    response.access
+                );
 
-                // Profil / chats səhifəsinə keç
+                localStorage.setItem(
+                    'refreshToken',
+                    response.refresh
+                );
+
+                // Hazırkı istifadəçini yadda saxla
+                localStorage.setItem(
+                    'currentUser',
+                    JSON.stringify(response.user)
+                );
+
+                // Chats səhifəsinə keç
                 window.location.href = "./chats.html";
             },
 

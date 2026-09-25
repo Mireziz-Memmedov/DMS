@@ -1,20 +1,428 @@
 $(document).ready(function () {
 
     // =========================
-    // BACK BUTTON
+    // CONVERSATION ID
     // =========================
 
-    $("#backButton").on("click", function () {
+    const conversationId =
+        new URLSearchParams(window.location.search)
+            .get("conversation");
+
+    if (!conversationId) {
         window.location.href = "chats.html";
-    });
+        return;
+    }
 
 
     // =========================
-    // MESSAGE INPUT
+    // CURRENT USER
+    // =========================
+
+    let currentUser = null;
+
+    try {
+
+        currentUser = JSON.parse(
+            localStorage.getItem("currentUser")
+        );
+
+    } catch (error) {
+
+        currentUser = null;
+
+    }
+
+
+    // =========================
+    // ELEMENTS
     // =========================
 
     const $messageInput = $("#messageInput");
     const $messagesArea = $("#messagesArea");
+
+
+    // =========================
+    // BACK BUTTON
+    // =========================
+
+    $("#backButton").on("click", function () {
+
+        window.location.href = "chats.html";
+
+    });
+
+
+    // =========================
+    // LOAD CONVERSATION
+    // =========================
+
+    function loadConversation() {
+
+        apiRequest({
+
+            url:
+                API_URL +
+                "/api/conversations/",
+
+            type: "GET",
+
+            success: function (conversations) {
+
+                const conversation =
+                    conversations.find(function (item) {
+
+                        return String(item.id) ===
+                            String(conversationId);
+
+                    });
+
+
+                if (!conversation) {
+
+                    console.log(
+                        "Söhbət tapılmadı."
+                    );
+
+                    window.location.href =
+                        "chats.html";
+
+                    return;
+
+                }
+
+
+                // =========================
+                // FIND OTHER USER
+                // =========================
+
+                let otherUser = null;
+
+
+                if (
+                    conversation.participants &&
+                    conversation.participants.length
+                ) {
+
+                    otherUser =
+                        conversation.participants.find(
+                            function (user) {
+
+                                if (!currentUser) {
+                                    return true;
+                                }
+
+                                return String(user.id) !==
+                                    String(currentUser.id);
+
+                            }
+                        );
+
+                }
+
+
+                if (!otherUser) {
+                    return;
+                }
+
+
+                // =========================
+                // USER NAME
+                // =========================
+
+                let fullName =
+                    (
+                        otherUser.first_name +
+                        " " +
+                        otherUser.last_name
+                    ).trim();
+
+
+                if (!fullName) {
+
+                    fullName =
+                        otherUser.username ||
+                        "İstifadəçi";
+
+                }
+
+
+                $("#chatUserName").text(
+                    fullName
+                );
+
+
+                // =========================
+                // USER AVATAR
+                // =========================
+
+                let avatarText = "";
+
+
+                if (otherUser.first_name) {
+
+                    avatarText +=
+                        otherUser.first_name
+                            .charAt(0)
+                            .toUpperCase();
+
+                }
+
+
+                if (otherUser.last_name) {
+
+                    avatarText +=
+                        otherUser.last_name
+                            .charAt(0)
+                            .toUpperCase();
+
+                }
+
+
+                if (!avatarText) {
+
+                    avatarText =
+                        otherUser.username
+                            ? otherUser.username
+                                .charAt(0)
+                                .toUpperCase()
+                            : "U";
+
+                }
+
+
+                $("#chatUserAvatar").text(
+                    avatarText
+                );
+
+
+                // =========================
+                // STATUS
+                // =========================
+
+                if (otherUser.last_seen) {
+
+                    $("#chatUserStatus").text(
+                        "son görülmə: " +
+                        formatLastSeen(
+                            otherUser.last_seen
+                        )
+                    );
+
+                } else {
+
+                    $("#chatUserStatus").text(
+                        "—"
+                    );
+
+                }
+
+            },
+
+            error: function (xhr) {
+
+                console.log(
+                    "Söhbət yüklənmədi:",
+                    xhr.responseText
+                );
+
+            }
+
+        });
+
+    }
+
+
+    // =========================
+    // LAST SEEN FORMAT
+    // =========================
+
+    function formatLastSeen(dateString) {
+
+        const date =
+            new Date(dateString);
+
+        if (isNaN(date.getTime())) {
+            return "—";
+        }
+
+
+        return date.toLocaleString(
+            "az-AZ",
+            {
+                day: "2-digit",
+                month: "2-digit",
+                hour: "2-digit",
+                minute: "2-digit"
+            }
+        );
+
+    }
+
+
+    // =========================
+    // LOAD MESSAGES
+    // =========================
+
+    function loadMessages() {
+
+        apiRequest({
+
+            url:
+                API_URL +
+                "/api/conversations/" +
+                conversationId +
+                "/messages/",
+
+            type: "GET",
+
+            success: function (messages) {
+
+                $messagesArea.empty();
+
+
+                if (!messages.length) {
+
+                    scrollToBottom();
+
+                    return;
+
+                }
+
+
+                messages.forEach(function (message) {
+
+                    renderMessage(message);
+
+                });
+
+
+                scrollToBottom();
+
+            },
+
+            error: function (xhr) {
+
+                console.log(
+                    "Mesajlar yüklənmədi:",
+                    xhr.responseText
+                );
+
+            }
+
+        });
+
+    }
+
+
+    // =========================
+    // RENDER MESSAGE
+    // =========================
+
+    function renderMessage(message) {
+
+        console.log("CURRENT USER:", currentUser);
+        console.log("CURRENT USER ID:", currentUser && currentUser.id);
+        console.log(
+            "MESSAGE SENDER:",
+            message.sender
+        );
+
+        const senderId =
+            message.sender &&
+            message.sender.id;
+
+        const currentUserId =
+            currentUser &&
+            currentUser.id;
+
+
+        const isSent =
+            String(senderId) ===
+            String(currentUserId);
+
+
+        const messageClass =
+            isSent
+                ? "sent"
+                : "received";
+
+
+        const time =
+            formatMessageTime(
+                message.created_at
+            );
+
+
+        const $message = $(`
+
+        <div class="message-row ${messageClass}">
+
+            <div class="message-bubble">
+
+                <p></p>
+
+                <div class="message-meta">
+
+                    <time></time>
+
+                    ${isSent
+                ? `
+                                <i class="fa-solid fa-check message-read"></i>
+                              `
+                : ""
+            }
+
+                </div>
+
+            </div>
+
+        </div>
+
+    `);
+
+
+        $message
+            .find("p")
+            .text(message.content);
+
+
+        $message
+            .find("time")
+            .text(time);
+
+
+        $messagesArea.append(
+            $message
+        );
+
+    }
+
+
+    // =========================
+    // MESSAGE TIME
+    // =========================
+
+    function formatMessageTime(dateString) {
+
+        const date =
+            new Date(dateString);
+
+        if (isNaN(date.getTime())) {
+
+            return "";
+
+        }
+
+
+        return date.toLocaleTimeString(
+            "az-AZ",
+            {
+                hour: "2-digit",
+                minute: "2-digit"
+            }
+        );
+
+    }
 
 
     // =========================
@@ -23,56 +431,92 @@ $(document).ready(function () {
 
     function sendMessage() {
 
-        const message = $messageInput.val().trim();
+        const message =
+            $messageInput
+                .val()
+                .trim();
+
 
         if (message === "") {
             return;
         }
 
-        const currentTime = new Date().toLocaleTimeString("az-AZ", {
-            hour: "2-digit",
-            minute: "2-digit"
+
+        // Düyməni müvəqqəti deaktiv edirik
+
+        $("#sendButton").prop(
+            "disabled",
+            true
+        );
+
+
+        apiRequest({
+
+            url:
+                API_URL +
+                "/api/conversations/" +
+                conversationId +
+                "/messages/create/",
+
+            type: "POST",
+
+            contentType:
+                "application/json",
+
+            data: JSON.stringify({
+
+                content: message
+
+            }),
+
+            success: function (response) {
+
+                // Backend-dən gələn mesajı göstər
+
+                renderMessage(
+                    response
+                );
+
+
+                // Input təmizlə
+
+                $messageInput.val("");
+
+
+                // Textarea ölçüsünü sıfırla
+
+                $messageInput.css(
+                    "height",
+                    "auto"
+                );
+
+
+                // Aşağı scroll
+
+                scrollToBottom();
+
+            },
+
+            error: function (xhr) {
+
+                console.log(
+                    "Mesaj göndərilmədi:",
+                    xhr.responseText
+                );
+
+            },
+
+            complete: function () {
+
+                $("#sendButton").prop(
+                    "disabled",
+                    false
+                );
+
+            }
+
         });
 
-
-        const messageHTML = `
-            <div class="message-row sent">
-
-                <div class="message-bubble">
-
-                    <p></p>
-
-                    <div class="message-meta">
-
-                        <time>${currentTime}</time>
-
-                        <i class="fa-solid fa-check message-read"></i>
-
-                    </div>
-
-                </div>
-
-            </div>
-        `;
-
-
-        const $message = $(messageHTML);
-
-        $message.find("p").text(message);
-
-        $messagesArea.append($message);
-
-
-        // Input təmizlə
-        $messageInput.val("");
-
-
-        // Textarea ölçüsünü sıfırla
-        $messageInput.css("height", "auto");
-
-
-        // Aşağı scroll
-        scrollToBottom();
     }
 
 
@@ -80,9 +524,14 @@ $(document).ready(function () {
     // SEND BUTTON
     // =========================
 
-    $("#sendButton").on("click", function () {
-        sendMessage();
-    });
+    $("#sendButton").on(
+        "click",
+        function () {
+
+            sendMessage();
+
+        }
+    );
 
 
     // =========================
@@ -90,32 +539,43 @@ $(document).ready(function () {
     // SHIFT + ENTER = NEW LINE
     // =========================
 
-    $messageInput.on("keydown", function (event) {
+    $messageInput.on(
+        "keydown",
+        function (event) {
 
-        if (event.key === "Enter" && !event.shiftKey) {
+            if (
+                event.key === "Enter" &&
+                !event.shiftKey
+            ) {
 
-            event.preventDefault();
+                event.preventDefault();
 
-            sendMessage();
+                sendMessage();
+
+            }
+
         }
-
-    });
+    );
 
 
     // =========================
     // AUTO RESIZE TEXTAREA
     // =========================
 
-    $messageInput.on("input", function () {
+    $messageInput.on(
+        "input",
+        function () {
 
-        this.style.height = "auto";
+            this.style.height = "auto";
 
-        this.style.height = Math.min(
-            this.scrollHeight,
-            120
-        ) + "px";
+            this.style.height =
+                Math.min(
+                    this.scrollHeight,
+                    120
+                ) + "px";
 
-    });
+        }
+    );
 
 
     // =========================
@@ -124,315 +584,463 @@ $(document).ready(function () {
 
     function scrollToBottom() {
 
-        const element = $messagesArea[0];
+        const element =
+            $messagesArea[0];
+
 
         if (!element) {
             return;
         }
 
-        element.scrollTop = element.scrollHeight;
+
+        element.scrollTop =
+            element.scrollHeight;
+
     }
-
-
-    // Səhifə açıldıqda aşağıda göstər
-    scrollToBottom();
 
 
     // =========================
     // CHAT SEARCH
     // =========================
 
-    $("#chatSearchButton").on("click", function () {
+    $("#chatSearchButton").on(
+        "click",
+        function () {
 
-        $("#chatSearchBox").addClass("active");
+            $("#chatSearchBox")
+                .addClass("active");
 
-        $("#messageSearch").trigger("focus");
+            $("#messageSearch")
+                .trigger("focus");
 
-    });
+        }
+    );
 
 
     // =========================
     // CLOSE SEARCH
     // =========================
 
-    $("#closeChatSearch").on("click", function () {
+    $("#closeChatSearch").on(
+        "click",
+        function () {
 
-        $("#messageSearch").val("");
+            $("#messageSearch").val("");
 
-        $(".message-row").show();
+            $(".message-row").show();
 
-        $("#chatSearchBox").removeClass("active");
+            $("#chatSearchBox")
+                .removeClass("active");
 
-    });
+        }
+    );
 
 
     // =========================
     // SEARCH MESSAGES
     // =========================
 
-    $("#messageSearch").on("input", function () {
+    $("#messageSearch").on(
+        "input",
+        function () {
 
-        const searchText = $(this).val()
-            .toLowerCase()
-            .trim();
-
-
-        if (searchText === "") {
-
-            $(".message-row").show();
-
-            return;
-        }
+            const searchText =
+                $(this)
+                    .val()
+                    .toLowerCase()
+                    .trim();
 
 
-        $(".message-row").each(function () {
+            if (searchText === "") {
 
-            const messageText = $(this)
-                .find("p")
-                .text()
-                .toLowerCase();
+                $(".message-row").show();
 
-
-            if (messageText.includes(searchText)) {
-
-                $(this).show();
-
-            } else {
-
-                $(this).hide();
+                return;
 
             }
 
-        });
 
-    });
+            $(".message-row").each(
+                function () {
+
+                    const messageText =
+                        $(this)
+                            .find("p")
+                            .text()
+                            .toLowerCase();
+
+
+                    if (
+                        messageText.includes(
+                            searchText
+                        )
+                    ) {
+
+                        $(this).show();
+
+                    } else {
+
+                        $(this).hide();
+
+                    }
+
+                }
+            );
+
+        }
+    );
 
 
     // =========================
     // MORE MENU
     // =========================
 
-    $("#chatMoreButton").on("click", function (event) {
+    $("#chatMoreButton").on(
+        "click",
+        function (event) {
 
-        event.stopPropagation();
+            event.stopPropagation();
 
-        $("#chatMoreMenu").toggleClass("active");
+            $("#chatMoreMenu")
+                .toggleClass("active");
 
-        $("#attachmentMenu").removeClass("active");
+            $("#attachmentMenu")
+                .removeClass("active");
 
-    });
+            $("#emojiMenu")
+                .removeClass("active");
+
+        }
+    );
 
 
     // =========================
     // ATTACHMENT MENU
     // =========================
 
-    $("#attachmentButton").on("click", function (event) {
+    $("#attachmentButton").on(
+        "click",
+        function (event) {
 
-        event.stopPropagation();
+            event.stopPropagation();
 
-        $("#attachmentMenu").toggleClass("active");
+            $("#attachmentMenu")
+                .toggleClass("active");
 
-        $("#chatMoreMenu").removeClass("active");
+            $("#chatMoreMenu")
+                .removeClass("active");
 
-    });
+            $("#emojiMenu")
+                .removeClass("active");
+
+        }
+    );
 
 
     // =========================
     // CLOSE MENUS
     // =========================
 
-    $(document).on("click", function () {
+    $(document).on(
+        "click",
+        function () {
 
-        $("#chatMoreMenu").removeClass("active");
+            $("#chatMoreMenu")
+                .removeClass("active");
 
-        $("#attachmentMenu").removeClass("active");
+            $("#attachmentMenu")
+                .removeClass("active");
 
-    });
+        }
+    );
 
 
-    // Menyunun özünə klik edəndə bağlanmasın
-    $("#chatMoreMenu, #attachmentMenu").on("click", function (event) {
+    // =========================
+    // MENU CLICK
+    // =========================
 
-        event.stopPropagation();
+    $("#chatMoreMenu, #attachmentMenu")
+        .on(
+            "click",
+            function (event) {
 
-    });
+                event.stopPropagation();
+
+            }
+        );
 
 
     // =========================
     // PHOTO
     // =========================
 
-    $("#photoButton").on("click", function () {
+    $("#photoButton").on(
+        "click",
+        function () {
 
-        $("#fileInput").attr(
-            "accept",
-            "image/*"
-        );
+            $("#fileInput").attr(
+                "accept",
+                "image/*"
+            );
 
-        $("#fileInput").trigger("click");
+            $("#fileInput")
+                .trigger("click");
 
-    });
+        }
+    );
 
 
     // =========================
     // FILE
     // =========================
 
-    $("#fileButton").on("click", function () {
+    $("#fileButton").on(
+        "click",
+        function () {
 
-        $("#fileInput").attr(
-            "accept",
-            "*/*"
-        );
+            $("#fileInput").attr(
+                "accept",
+                "*/*"
+            );
 
-        $("#fileInput").trigger("click");
+            $("#fileInput")
+                .trigger("click");
 
-    });
+        }
+    );
 
 
     // =========================
     // FILE SELECTED
     // =========================
 
-    $("#fileInput").on("change", function () {
+    $("#fileInput").on(
+        "change",
+        function () {
 
-        const file = this.files[0];
+            const file =
+                this.files[0];
 
-        if (!file) {
-            return;
+
+            if (!file) {
+                return;
+            }
+
+
+            console.log(
+                "Seçilmiş fayl:",
+                file.name
+            );
+
+
+            // Backend upload sistemi
+            // sonra əlavə ediləcək.
+
+            $(this).val("");
+
         }
-
-        console.log("Seçilmiş fayl:", file.name);
-
-        // Backend qoşulanda burada upload edəcəyik.
-
-        $(this).val("");
-
-    });
+    );
 
 
     // =========================
     // MUTE CHAT
     // =========================
 
-    $("#muteChatButton").on("click", function () {
+    $("#muteChatButton").on(
+        "click",
+        function () {
 
-        $("#chatMoreMenu").removeClass("active");
+            $("#chatMoreMenu")
+                .removeClass("active");
 
-        console.log("Bildirişlər susduruldu.");
+            console.log(
+                "Bildirişlər susduruldu."
+            );
 
-    });
+        }
+    );
 
 
     // =========================
     // CLEAR CHAT
     // =========================
 
-    $("#clearChatButton").on("click", function () {
+    $("#clearChatButton").on(
+        "click",
+        function () {
 
-        $("#chatMoreMenu").removeClass("active");
+            $("#chatMoreMenu")
+                .removeClass("active");
 
-        console.log("Söhbəti təmizlə düyməsi.");
+            console.log(
+                "Söhbəti təmizlə düyməsi."
+            );
 
-    });
+        }
+    );
 
 
     // =========================
     // BLOCK USER
     // =========================
 
-    $("#blockUserButton").on("click", function () {
+    $("#blockUserButton").on(
+        "click",
+        function () {
 
-        $("#chatMoreMenu").removeClass("active");
+            $("#chatMoreMenu")
+                .removeClass("active");
 
-        console.log("Əməkdaş bloklama düyməsi.");
+            console.log(
+                "Əməkdaş bloklama düyməsi."
+            );
 
-    });
+        }
+    );
 
 
     // =========================
     // ESC KEY
     // =========================
 
-    $(document).on("keydown", function (event) {
+    $(document).on(
+        "keydown",
+        function (event) {
 
-        if (event.key !== "Escape") {
-            return;
+            if (event.key !== "Escape") {
+                return;
+            }
+
+
+            $("#chatSearchBox")
+                .removeClass("active");
+
+            $("#chatMoreMenu")
+                .removeClass("active");
+
+            $("#attachmentMenu")
+                .removeClass("active");
+
+            $("#emojiMenu")
+                .removeClass("active");
+
+            $("#messageSearch").val("");
+
+            $(".message-row").show();
+
         }
+    );
 
-        $("#chatSearchBox").removeClass("active");
-
-        $("#chatMoreMenu").removeClass("active");
-
-        $("#attachmentMenu").removeClass("active");
-
-        $("#messageSearch").val("");
-
-        $(".message-row").show();
-
-    });
 
     // =========================
     // EMOJI MENU
     // =========================
 
-    $("#emojiButton").on("click", function (event) {
+    $("#emojiButton").on(
+        "click",
+        function (event) {
 
-        event.stopPropagation();
+            event.stopPropagation();
 
-        $("#emojiMenu").toggleClass("active");
+            $("#emojiMenu")
+                .toggleClass("active");
 
-        $("#chatMoreMenu").removeClass("active");
-        $("#attachmentMenu").removeClass("active");
+            $("#chatMoreMenu")
+                .removeClass("active");
 
-    });
+            $("#attachmentMenu")
+                .removeClass("active");
+
+        }
+    );
 
 
     // =========================
     // SELECT EMOJI
     // =========================
 
-    $(".emoji-item").on("click", function (event) {
+    $(".emoji-item").on(
+        "click",
+        function (event) {
 
-        event.stopPropagation();
+            event.stopPropagation();
 
-        const emoji = $(this).text();
-        const textarea = $("#messageInput")[0];
 
-        const start = textarea.selectionStart;
-        const end = textarea.selectionEnd;
+            const emoji =
+                $(this).text();
 
-        const text = textarea.value;
 
-        textarea.value =
-            text.substring(0, start) +
-            emoji +
-            text.substring(end);
+            const textarea =
+                $("#messageInput")[0];
 
-        textarea.selectionStart = start + emoji.length;
-        textarea.selectionEnd = start + emoji.length;
 
-        $("#messageInput").trigger("input");
+            const start =
+                textarea.selectionStart;
 
-        textarea.focus();
 
-    });
+            const end =
+                textarea.selectionEnd;
+
+
+            const text =
+                textarea.value;
+
+
+            textarea.value =
+                text.substring(0, start) +
+                emoji +
+                text.substring(end);
+
+
+            textarea.selectionStart =
+                start + emoji.length;
+
+
+            textarea.selectionEnd =
+                start + emoji.length;
+
+
+            $("#messageInput")
+                .trigger("input");
+
+
+            textarea.focus();
+
+        }
+    );
 
 
     // =========================
     // CLOSE EMOJI MENU
     // =========================
 
-    $(document).on("click", function () {
+    $(document).on(
+        "click",
+        function () {
 
-        $("#emojiMenu").removeClass("active");
+            $("#emojiMenu")
+                .removeClass("active");
 
-    });
+        }
+    );
 
-    $("#emojiMenu").on("click", function (event) {
 
-        event.stopPropagation();
+    $("#emojiMenu").on(
+        "click",
+        function (event) {
 
-    });
+            event.stopPropagation();
+
+        }
+    );
+
+
+    // =========================
+    // INITIAL LOAD
+    // =========================
+
+    loadConversation();
+
+    loadMessages();
+
 });

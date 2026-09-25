@@ -16,22 +16,20 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
 
+    <script src="api.js" defer></script>
     <script src="translation.js" defer></script>
     <script src="dark-mode.js" defer></script>
     <script src="chat.js" defer></script>
-    <script src="api.js" defer></script>
-
 
 </head>
 
 <body>
 
-
     <main class="chat-page">
 
         <!-- =========================
-         CHAT HEADER
-    ========================== -->
+             CHAT HEADER
+        ========================== -->
 
         <header class="chat-header">
 
@@ -44,7 +42,9 @@
 
                 <div class="chat-user-avatar">
 
-                    AM
+                    <span id="chatUserAvatar">
+                        U
+                    </span>
 
                     <span class="online-dot"></span>
 
@@ -54,11 +54,11 @@
                 <div class="chat-user-info">
 
                     <h1 id="chatUserName">
-                        Ahmad Məmmədov
+                        İstifadəçi
                     </h1>
 
                     <span id="chatUserStatus">
-                        onlayn
+                        —
                     </span>
 
                 </div>
@@ -87,8 +87,8 @@
 
 
         <!-- =========================
-         CHAT SEARCH
-    ========================== -->
+             CHAT SEARCH
+        ========================== -->
 
         <div class="chat-search-box" id="chatSearchBox">
 
@@ -104,146 +104,16 @@
 
 
         <!-- =========================
-         MESSAGES
-    ========================== -->
+             MESSAGES
+        ========================== -->
 
         <section class="messages-area" id="messagesArea">
-
-            <!-- DATE -->
-
-            <div class="message-date">
-
-                <span>
-                    Bu gün
-                </span>
-
-            </div>
-
-
-            <!-- RECEIVED MESSAGE -->
-
-            <div class="message-row received">
-
-                <div class="message-bubble">
-
-                    <p>
-                        Salam, necəsən?
-                    </p>
-
-                    <div class="message-meta">
-
-                        <time>
-                            14:28
-                        </time>
-
-                    </div>
-
-                </div>
-
-            </div>
-
-
-            <!-- SENT MESSAGE -->
-
-            <div class="message-row sent">
-
-                <div class="message-bubble">
-
-                    <p>
-                        Salam, yaxşıyam. Sən necəsən?
-                    </p>
-
-                    <div class="message-meta">
-
-                        <time>
-                            14:29
-                        </time>
-
-                        <i class="fa-solid fa-check-double message-read"></i>
-
-                    </div>
-
-                </div>
-
-            </div>
-
-
-            <!-- RECEIVED MESSAGE -->
-
-            <div class="message-row received">
-
-                <div class="message-bubble">
-
-                    <p>
-                        Mən də yaxşıyam. Sənə sənədlə bağlı yazırdım.
-                    </p>
-
-                    <div class="message-meta">
-
-                        <time>
-                            14:30
-                        </time>
-
-                    </div>
-
-                </div>
-
-            </div>
-
-
-            <!-- RECEIVED MESSAGE -->
-
-            <div class="message-row received">
-
-                <div class="message-bubble">
-
-                    <p>
-                        Sənə sənədi göndərdim.
-                    </p>
-
-                    <div class="message-meta">
-
-                        <time>
-                            14:32
-                        </time>
-
-                    </div>
-
-                </div>
-
-            </div>
-
-
-            <!-- SENT MESSAGE -->
-
-            <div class="message-row sent">
-
-                <div class="message-bubble">
-
-                    <p>
-                        Oldu, baxıram.
-                    </p>
-
-                    <div class="message-meta">
-
-                        <time>
-                            14:33
-                        </time>
-
-                        <i class="fa-solid fa-check-double message-read"></i>
-
-                    </div>
-
-                </div>
-
-            </div>
-
         </section>
 
 
         <!-- =========================
-         MESSAGE INPUT
-    ========================== -->
+             MESSAGE INPUT
+        ========================== -->
 
         <footer class="message-input-area">
 
@@ -268,28 +138,88 @@
                     <i class="fa-regular fa-face-smile"></i>
                 </button>
 
+
                 <div class="emoji-menu" id="emojiMenu">
 
-                    <button type="button" class="emoji-item">😀</button>
-                    <button type="button" class="emoji-item">😂</button>
-                    <button type="button" class="emoji-item">🤣</button>
-                    <button type="button" class="emoji-item">😊</button>
-                    <button type="button" class="emoji-item">😍</button>
-                    <button type="button" class="emoji-item">🥰</button>
-                    <button type="button" class="emoji-item">😘</button>
-                    <button type="button" class="emoji-item">😎</button>
-                    <button type="button" class="emoji-item">😢</button>
-                    <button type="button" class="emoji-item">😭</button>
-                    <button type="button" class="emoji-item">😡</button>
-                    <button type="button" class="emoji-item">😱</button>
-                    <button type="button" class="emoji-item">👍</button>
-                    <button type="button" class="emoji-item">👎</button>
-                    <button type="button" class="emoji-item">👏</button>
-                    <button type="button" class="emoji-item">🙏</button>
-                    <button type="button" class="emoji-item">❤️</button>
-                    <button type="button" class="emoji-item">🔥</button>
-                    <button type="button" class="emoji-item">🎉</button>
-                    <button type="button" class="emoji-item">✅</button>
+                    <button type="button" class="emoji-item">
+                        😀
+                    </button>
+
+                    <button type="button" class="emoji-item">
+                        😂
+                    </button>
+
+                    <button type="button" class="emoji-item">
+                        🤣
+                    </button>
+
+                    <button type="button" class="emoji-item">
+                        😊
+                    </button>
+
+                    <button type="button" class="emoji-item">
+                        😍
+                    </button>
+
+                    <button type="button" class="emoji-item">
+                        🥰
+                    </button>
+
+                    <button type="button" class="emoji-item">
+                        😘
+                    </button>
+
+                    <button type="button" class="emoji-item">
+                        😎
+                    </button>
+
+                    <button type="button" class="emoji-item">
+                        😢
+                    </button>
+
+                    <button type="button" class="emoji-item">
+                        😭
+                    </button>
+
+                    <button type="button" class="emoji-item">
+                        😡
+                    </button>
+
+                    <button type="button" class="emoji-item">
+                        😱
+                    </button>
+
+                    <button type="button" class="emoji-item">
+                        👍
+                    </button>
+
+                    <button type="button" class="emoji-item">
+                        👎
+                    </button>
+
+                    <button type="button" class="emoji-item">
+                        👏
+                    </button>
+
+                    <button type="button" class="emoji-item">
+                        🙏
+                    </button>
+
+                    <button type="button" class="emoji-item">
+                        ❤️
+                    </button>
+
+                    <button type="button" class="emoji-item">
+                        🔥
+                    </button>
+
+                    <button type="button" class="emoji-item">
+                        🎉
+                    </button>
+
+                    <button type="button" class="emoji-item">
+                        ✅
+                    </button>
 
                 </div>
 
@@ -306,8 +236,8 @@
 
 
         <!-- =========================
-         CHAT MORE MENU
-    ========================== -->
+             CHAT MORE MENU
+        ========================== -->
 
         <div class="chat-more-menu" id="chatMoreMenu">
 
@@ -347,8 +277,8 @@
 
 
         <!-- =========================
-         ATTACHMENT MENU
-    ========================== -->
+             ATTACHMENT MENU
+        ========================== -->
 
         <div class="attachment-menu" id="attachmentMenu">
 
@@ -376,7 +306,9 @@
         </div>
 
 
-        <!-- Hidden file input -->
+        <!-- =========================
+             HIDDEN FILE INPUT
+        ========================== -->
 
         <input type="file" id="fileInput" hidden>
 
