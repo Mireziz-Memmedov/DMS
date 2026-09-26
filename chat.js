@@ -32,6 +32,67 @@ $(document).ready(function () {
 
     }
 
+    // =========================
+    // WEBSOCKET
+    // =========================
+
+    let socket = null;
+
+    function connectWebSocket() {
+
+        const protocol =
+            window.location.protocol === "https:"
+                ? "wss:"
+                : "ws:";
+
+        const wsUrl =
+            protocol +
+            "//" +
+            API_URL.replace(/^https?:\/\//, "") +
+            "/ws/chat/" +
+            conversationId +
+            "/";
+
+        socket = new WebSocket(wsUrl);
+
+        socket.onopen = function () {
+
+            console.log(
+                "WebSocket bağlantısı açıldı."
+            );
+
+        };
+
+        socket.onmessage = function (event) {
+
+            const data =
+                JSON.parse(event.data);
+
+            console.log(
+                "WebSocket mesajı:",
+                data
+            );
+
+        };
+
+        socket.onclose = function () {
+
+            console.log(
+                "WebSocket bağlantısı bağlandı."
+            );
+
+        };
+
+        socket.onerror = function (error) {
+
+            console.log(
+                "WebSocket xətası:",
+                error
+            );
+
+        };
+    }
+
 
     // =========================
     // ELEMENTS
@@ -1042,5 +1103,7 @@ $(document).ready(function () {
     loadConversation();
 
     loadMessages();
+
+    connectWebSocket();
 
 });
