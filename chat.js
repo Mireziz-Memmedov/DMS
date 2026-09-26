@@ -45,13 +45,17 @@ $(document).ready(function () {
                 ? "wss:"
                 : "ws:";
 
+        const accessToken =
+            localStorage.getItem("accessToken");
+
         const wsUrl =
             protocol +
             "//" +
             API_URL.replace(/^https?:\/\//, "") +
             "/ws/chat/" +
             conversationId +
-            "/";
+            "/?token=" +
+            encodeURIComponent(accessToken);
 
         socket = new WebSocket(wsUrl);
 
@@ -65,13 +69,22 @@ $(document).ready(function () {
 
         socket.onmessage = function (event) {
 
+            console.log("WEBSOCKET RAW:", event.data);
+
             const data =
                 JSON.parse(event.data);
 
-            console.log(
-                "WebSocket mesajı:",
-                data
+            console.log("WEBSOCKET DATA:", data);
+
+            if (!data.message) {
+                return;
+            }
+
+            renderMessage(
+                data.message
             );
+
+            scrollToBottom();
 
         };
 
@@ -497,87 +510,27 @@ $(document).ready(function () {
                 .val()
                 .trim();
 
-
         if (message === "") {
             return;
         }
 
+        if (!socket || socket.readyState !== WebSocket.OPEN) {
+            console.log("WebSocket bağlantısı açıq deyil.");
+            return;
+        }
 
-        // Düyməni müvəqqəti deaktiv edirik
-
-        $("#sendButton").prop(
-            "disabled",
-            true
+        socket.send(
+            JSON.stringify({
+                message: message
+            })
         );
 
+        $messageInput.val("");
 
-        apiRequest({
-
-            url:
-                API_URL +
-                "/api/conversations/" +
-                conversationId +
-                "/messages/create/",
-
-            type: "POST",
-
-            contentType:
-                "application/json",
-
-            data: JSON.stringify({
-
-                content: message
-
-            }),
-
-            success: function (response) {
-
-                // Backend-dən gələn mesajı göstər
-
-                renderMessage(
-                    response
-                );
-
-
-                // Input təmizlə
-
-                $messageInput.val("");
-
-
-                // Textarea ölçüsünü sıfırla
-
-                $messageInput.css(
-                    "height",
-                    "auto"
-                );
-
-
-                // Aşağı scroll
-
-                scrollToBottom();
-
-            },
-
-            error: function (xhr) {
-
-                console.log(
-                    "Mesaj göndərilmədi:",
-                    xhr.responseText
-                );
-
-            },
-
-            complete: function () {
-
-                $("#sendButton").prop(
-                    "disabled",
-                    false
-                );
-
-            }
-
-        });
-
+        $messageInput.css(
+            "height",
+            "auto"
+        );
     }
 
 
