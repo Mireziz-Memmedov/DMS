@@ -80,11 +80,20 @@ $(document).ready(function () {
                 return;
             }
 
-            renderMessage(
-                data.message
-            );
+            // Yalnız qarşı tərəfin mesajını göstər
+            if (
+                !currentUser ||
+                String(data.message.sender.id) !==
+                String(currentUser.id)
+            ) {
 
-            scrollToBottom();
+                renderMessage(
+                    data.message
+                );
+
+                scrollToBottom();
+
+            }
 
         };
 
@@ -519,6 +528,17 @@ $(document).ready(function () {
             return;
         }
 
+        // Mesajı dərhal öz ekranımızda göstər
+        renderMessage({
+            id: null,
+            content: message,
+            sender: currentUser,
+            created_at: new Date().toISOString()
+        });
+
+        scrollToBottom();
+
+        // Serverə göndər
         socket.send(
             JSON.stringify({
                 message: message
