@@ -637,6 +637,16 @@ $(document).ready(function () {
             const userId =
                 $(this).attr("data-user-id");
 
+            console.log(
+                "CLICKED CONTACT:",
+                $(this).text().trim()
+            );
+
+            console.log(
+                "CLICKED USER ID:",
+                userId
+            );
+
             if (!userId) {
                 return;
             }
@@ -649,17 +659,23 @@ $(document).ready(function () {
                 contentType: "application/json",
 
                 data: JSON.stringify({
-                    participants: [parseInt(userId)]
+                    participants: [
+                        parseInt(userId)
+                    ]
                 }),
 
                 success: function (conversation) {
+
+                    console.log(
+                        "OPENED CONVERSATION:",
+                        conversation.id
+                    );
 
                     window.location.href =
                         "chat.html?conversation=" +
                         encodeURIComponent(
                             conversation.id
                         );
-
                 },
 
                 error: function (xhr) {
@@ -668,11 +684,8 @@ $(document).ready(function () {
                         "Söhbət yaradıla bilmədi:",
                         xhr.responseText
                     );
-
                 }
-
             });
-
         }
     );
 
