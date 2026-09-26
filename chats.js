@@ -20,8 +20,20 @@ $(document).ready(function () {
                     const fullName =
                         `${employee.first_name || ""} ${employee.last_name || ""}`.trim();
 
+                    const currentUser =
+                        JSON.parse(
+                            localStorage.getItem("currentUser")
+                        ) || null;
+
+                    const isCurrentUser =
+                        currentUser &&
+                        String(employee.id) ===
+                        String(currentUser.id);
+
                     const name =
-                        fullName || employee.username;
+                        isCurrentUser
+                            ? "Mən"
+                            : (fullName || employee.username);
 
                     const contact = $("<div>")
                         .addClass("contact-item")
@@ -123,7 +135,8 @@ $(document).ready(function () {
                                 return true;
                             }
 
-                            return user.id !== currentUser.id;
+                            return String(user.id) !==
+                                String(currentUser.id);
 
                         });
 
