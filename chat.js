@@ -40,74 +40,67 @@ $(document).ready(function () {
 
     function connectWebSocket() {
 
-        if (!conversationId) {
-            return;
-        }
-
-        if (
-            socket &&
-            (
-                socket.readyState === WebSocket.OPEN ||
-                socket.readyState === WebSocket.CONNECTING
-            )
-        ) {
-            return;
-        }
-
         const protocol =
             window.location.protocol === "https:"
                 ? "wss:"
                 : "ws:";
 
+        const accessToken =
+            localStorage.getItem("accessToken");
+
         const wsUrl =
             protocol +
             "//" +
-            new URL(API_URL).host +
+            API_URL.replace(/^https?:\/\//, "") +
             "/ws/chat/" +
             conversationId +
             "/?token=" +
-            encodeURIComponent(
-                localStorage.getItem("accessToken")
-            );
+            encodeURIComponent(accessToken);
 
         socket = new WebSocket(wsUrl);
 
         socket.onopen = function () {
 
             console.log(
-                "WebSocket qoşuldu."
+                "WebSocket bağlantısı açıldı."
             );
 
         };
 
         socket.onmessage = function (event) {
 
+            console.log("WEBSOCKET RAW:", event.data);
+
             const data =
                 JSON.parse(event.data);
+
+            console.log("WEBSOCKET DATA:", data);
 
             if (!data.message) {
                 return;
             }
 
-            renderMessage(
-                data.message
-            );
+            // Yalnız qarşı tərəfin mesajını göstər
+            if (
+                !currentUser ||
+                String(data.message.sender.id) !==
+                String(currentUser.id)
+            ) {
+
+                renderMessage(
+                    data.message
+                );
+
+                scrollToBottom();
+
+            }
 
         };
 
         socket.onclose = function () {
 
             console.log(
-                "WebSocket bağlandı. Yenidən qoşulmağa çalışılır..."
-            );
-
-            setTimeout(
-                function () {
-
-                    connectWebSocket();
-
-                },
-                1000
+                "WebSocket bağlantısı bağlandı."
             );
 
         };
@@ -121,25 +114,6 @@ $(document).ready(function () {
 
         };
     }
-
-    document.addEventListener(
-        "visibilitychange",
-        function () {
-
-            if (
-                document.visibilityState === "visible"
-            ) {
-
-                console.log(
-                    "Səhifə yenidən aktiv oldu."
-                );
-
-                connectWebSocket();
-
-            }
-
-        }
-    );
 
 
     // =========================
