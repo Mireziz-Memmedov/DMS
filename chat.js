@@ -417,13 +417,12 @@ $(document).ready(function () {
 
 
                 messages.forEach(function (message) {
-
                     renderMessage(message);
-
                 });
 
-
-                scrollToBottom();
+                requestAnimationFrame(function () {
+                    scrollToBottom();
+                });
 
             },
 

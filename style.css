@@ -1725,7 +1725,7 @@ textarea {
 }
 
 .chat-page {
-  min-height: 100vh;
+  height: 100vh;
   display: flex;
   flex-direction: column;
   background: #f5f7fb;
@@ -1915,6 +1915,7 @@ textarea {
 
 .messages-area {
   flex: 1;
+  min-height: 0;
   width: 100%;
   max-width: 850px;
   margin: 0 auto;
