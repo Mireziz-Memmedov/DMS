@@ -421,7 +421,13 @@ $(document).ready(function () {
                 });
 
                 requestAnimationFrame(function () {
+
                     scrollToBottom();
+
+                    setTimeout(function () {
+                        scrollToBottom();
+                    }, 100);
+
                 });
 
             },
@@ -671,7 +677,8 @@ $(document).ready(function () {
 
 
         element.scrollTop =
-            element.scrollHeight;
+            element.scrollHeight -
+            element.clientHeight;
 
     }
 
