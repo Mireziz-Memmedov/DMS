@@ -1,10 +1,34 @@
 $(document).ready(function () {
 
+
     // =========================
     // LOAD EMPLOYEES
     // =========================
 
     function loadEmployees() {
+
+        const cachedEmployees =
+            JSON.parse(
+                localStorage.getItem("dmsEmployees")
+            ) || null;
+
+
+        // =========================
+        // SHOW CACHE FIRST
+        // =========================
+
+        if (cachedEmployees) {
+
+            renderEmployees(
+                cachedEmployees
+            );
+
+        }
+
+
+        // =========================
+        // GET FRESH DATA
+        // =========================
 
         apiRequest({
 
@@ -13,64 +37,16 @@ $(document).ready(function () {
 
             success: function (employees) {
 
-                $("#contactsList").empty();
+                // Cache yenilə
+                localStorage.setItem(
+                    "dmsEmployees",
+                    JSON.stringify(employees)
+                );
 
-                employees.forEach(function (employee) {
-
-                    const fullName =
-                        `${employee.first_name || ""} ${employee.last_name || ""}`.trim();
-
-                    const currentUser =
-                        JSON.parse(
-                            localStorage.getItem("currentUser")
-                        ) || null;
-
-                    const isCurrentUser =
-                        currentUser &&
-                        String(employee.id) ===
-                        String(currentUser.id);
-
-                    const name =
-                        isCurrentUser
-                            ? "Mən"
-                            : (fullName || employee.username);
-
-                    const contact = $("<div>")
-                        .addClass("contact-item")
-                        .attr("data-user-id", employee.id);
-
-                    const avatar = $("<div>")
-                        .addClass("contact-avatar")
-                        .text(name.charAt(0).toUpperCase());
-
-                    const info = $("<div>")
-                        .addClass("contact-info");
-
-                    const top = $("<div>")
-                        .addClass("contact-top");
-
-                    const contactName = $("<h3>")
-                        .addClass("contact-name")
-                        .text(name);
-
-                    const position = $("<p>")
-                        .addClass("contact-position")
-                        .text(
-                            employee.position ||
-                            "DMS istifadəçisi"
-                        );
-
-                    top.append(contactName);
-
-                    info.append(top);
-                    info.append(position);
-
-                    contact.append(avatar);
-                    contact.append(info);
-
-                    $("#contactsList").append(contact);
-
-                });
+                // Təzə məlumatı göstər
+                renderEmployees(
+                    employees
+                );
 
             },
 
@@ -89,10 +65,132 @@ $(document).ready(function () {
 
 
     // =========================
+    // RENDER EMPLOYEES
+    // =========================
+
+    function renderEmployees(employees) {
+
+        $("#contactsList").empty();
+
+
+        const currentUser =
+            JSON.parse(
+                localStorage.getItem(
+                    "currentUser"
+                )
+            ) || null;
+
+
+        employees.forEach(function (employee) {
+
+            const fullName =
+                `${employee.first_name || ""} ${employee.last_name || ""}`
+                    .trim();
+
+
+            const isCurrentUser =
+                currentUser &&
+                String(employee.id) ===
+                String(currentUser.id);
+
+
+            const name =
+                isCurrentUser
+                    ? "Mən"
+                    : (
+                        fullName ||
+                        employee.username
+                    );
+
+
+            const contact =
+                $("<div>")
+                    .addClass("contact-item")
+                    .attr(
+                        "data-user-id",
+                        employee.id
+                    );
+
+
+            const avatar =
+                $("<div>")
+                    .addClass("contact-avatar")
+                    .text(
+                        name
+                            .charAt(0)
+                            .toUpperCase()
+                    );
+
+
+            const info =
+                $("<div>")
+                    .addClass("contact-info");
+
+
+            const top =
+                $("<div>")
+                    .addClass("contact-top");
+
+
+            const contactName =
+                $("<h3>")
+                    .addClass("contact-name")
+                    .text(name);
+
+
+            const position =
+                $("<p>")
+                    .addClass("contact-position")
+                    .text(
+                        employee.position ||
+                        "DMS istifadəçisi"
+                    );
+
+
+            top.append(contactName);
+
+            info.append(top);
+            info.append(position);
+
+            contact.append(avatar);
+            contact.append(info);
+
+            $("#contactsList")
+                .append(contact);
+
+        });
+
+    }
+
+
+    // =========================
     // LOAD CONVERSATIONS
     // =========================
 
     function loadConversations() {
+
+        const cachedConversations =
+            JSON.parse(
+                localStorage.getItem("dmsConversations")
+            ) || null;
+
+
+        // =========================
+        // SHOW CACHE FIRST
+        // =========================
+
+        if (cachedConversations) {
+
+            renderConversations(
+                cachedConversations
+            );
+
+        }
+
+
+        // =========================
+        // GET FRESH DATA
+        // =========================
 
         apiRequest({
 
@@ -101,148 +199,16 @@ $(document).ready(function () {
 
             success: function (conversations) {
 
-                $("#chatList").empty();
+                // Cache yenilə
+                localStorage.setItem(
+                    "dmsConversations",
+                    JSON.stringify(conversations)
+                );
 
-                if (!conversations.length) {
-
-                    $("#emptyState").addClass("active");
-
-                    return;
-                }
-
-                $("#emptyState").removeClass("active");
-
-                const currentUser =
-                    JSON.parse(
-                        localStorage.getItem("currentUser")
-                    ) || null;
-
-
-                conversations.forEach(function (conversation) {
-
-                    const participants =
-                        conversation.participants || [];
-
-
-                    // =========================
-                    // OTHER USER
-                    // =========================
-
-                    let otherParticipants =
-                        participants.filter(function (user) {
-
-                            if (!currentUser) {
-                                return true;
-                            }
-
-                            return String(user.id) !==
-                                String(currentUser.id);
-
-                        });
-
-
-                    if (!otherParticipants.length) {
-                        otherParticipants = participants;
-                    }
-
-
-                    // =========================
-                    // CHAT NAME
-                    // =========================
-
-                    const names =
-                        otherParticipants.map(function (user) {
-
-                            const fullName =
-                                `${user.first_name || ""} ${user.last_name || ""}`.trim();
-
-                            return fullName || user.username;
-
-                        });
-
-
-                    const chatName =
-                        names.join(", ") ||
-                        "Naməlum söhbət";
-
-
-                    // =========================
-                    // AVATAR
-                    // =========================
-
-                    const firstName =
-                        otherParticipants[0]?.first_name || "";
-
-                    const lastName =
-                        otherParticipants[0]?.last_name || "";
-
-                    const avatarText =
-                        (
-                            firstName.charAt(0) +
-                            lastName.charAt(0)
-                        ).toUpperCase() ||
-                        chatName.charAt(0).toUpperCase();
-
-
-                    // =========================
-                    // CHAT ITEM
-                    // =========================
-
-                    const chatItem = $("<article>")
-                        .addClass("chat-item")
-                        .attr(
-                            "data-conversation-id",
-                            conversation.id
-                        );
-
-
-                    const avatar = $("<div>")
-                        .addClass("chat-avatar")
-                        .text(avatarText);
-
-
-                    const content = $("<div>")
-                        .addClass("chat-content");
-
-
-                    const top = $("<div>")
-                        .addClass("chat-top");
-
-
-                    const title = $("<h3>")
-                        .text(chatName);
-
-
-                    const time = $("<time>")
-                        .text(
-                            formatConversationTime(
-                                conversation.updated_at
-                            )
-                        );
-
-
-                    const bottom = $("<div>")
-                        .addClass("chat-bottom");
-
-
-                    const lastMessage = $("<p>")
-                        .text("Söhbət başladı");
-
-
-                    top.append(title);
-                    top.append(time);
-
-                    bottom.append(lastMessage);
-
-                    content.append(top);
-                    content.append(bottom);
-
-                    chatItem.append(avatar);
-                    chatItem.append(content);
-
-                    $("#chatList").append(chatItem);
-
-                });
+                // Yeni məlumatı göstər
+                renderConversations(
+                    conversations
+                );
 
             },
 
@@ -258,6 +224,185 @@ $(document).ready(function () {
         });
 
     }
+
+
+    // =========================
+    // RENDER CONVERSATIONS
+    // =========================
+
+    function renderConversations(conversations) {
+
+        $("#chatList").empty();
+
+
+        if (!conversations.length) {
+
+            $("#emptyState")
+                .addClass("active");
+
+            return;
+
+        }
+
+
+        $("#emptyState")
+            .removeClass("active");
+
+
+        const currentUser =
+            JSON.parse(
+                localStorage.getItem(
+                    "currentUser"
+                )
+            ) || null;
+
+
+        conversations.forEach(function (conversation) {
+
+            const participants =
+                conversation.participants || [];
+
+
+            // =========================
+            // OTHER USER
+            // =========================
+
+            let otherParticipants =
+                participants.filter(function (user) {
+
+                    if (!currentUser) {
+                        return true;
+                    }
+
+                    return String(user.id) !==
+                        String(currentUser.id);
+
+                });
+
+
+            if (!otherParticipants.length) {
+
+                otherParticipants =
+                    participants;
+
+            }
+
+
+            // =========================
+            // CHAT NAME
+            // =========================
+
+            const names =
+                otherParticipants.map(function (user) {
+
+                    const fullName =
+                        `${user.first_name || ""} ${user.last_name || ""} `
+                            .trim();
+
+                    return fullName ||
+                        user.username;
+
+                });
+
+
+            const chatName =
+                names.join(", ") ||
+                "Naməlum söhbət";
+
+
+            // =========================
+            // AVATAR
+            // =========================
+
+            const firstName =
+                otherParticipants[0]?.first_name ||
+                "";
+
+            const lastName =
+                otherParticipants[0]?.last_name ||
+                "";
+
+
+            const avatarText =
+                (
+                    firstName.charAt(0) +
+                    lastName.charAt(0)
+                ).toUpperCase() ||
+                chatName.charAt(0).toUpperCase();
+
+
+            // =========================
+            // CHAT ITEM
+            // =========================
+
+            const chatItem =
+                $("<article>")
+                    .addClass("chat-item")
+                    .attr(
+                        "data-conversation-id",
+                        conversation.id
+                    );
+
+
+            const avatar =
+                $("<div>")
+                    .addClass("chat-avatar")
+                    .text(avatarText);
+
+
+            const content =
+                $("<div>")
+                    .addClass("chat-content");
+
+
+            const top =
+                $("<div>")
+                    .addClass("chat-top");
+
+
+            const title =
+                $("<h3>")
+                    .text(chatName);
+
+
+            const time =
+                $("<time>")
+                    .text(
+                        formatConversationTime(
+                            conversation.updated_at
+                        )
+                    );
+
+
+            const bottom =
+                $("<div>")
+                    .addClass("chat-bottom");
+
+
+            const lastMessage =
+                $("<p>")
+                    .text(
+                        "Söhbət başladı"
+                    );
+
+
+            top.append(title);
+            top.append(time);
+
+            bottom.append(lastMessage);
+
+            content.append(top);
+            content.append(bottom);
+
+            chatItem.append(avatar);
+            chatItem.append(content);
+
+            $("#chatList").append(chatItem);
+
+        });
+
+    }
+
 
 
     // =========================
