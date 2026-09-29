@@ -395,6 +395,8 @@ $(document).ready(function () {
 
     let hasMoreMessages = true;
 
+    let isInitialLoading = true;
+
     // =========================
     // LOAD MESSAGES
     // =========================
@@ -428,6 +430,8 @@ $(document).ready(function () {
 
                     scrollToBottom();
 
+                    isInitialLoading = false;
+
                     return;
 
                 }
@@ -447,6 +451,8 @@ $(document).ready(function () {
                     setTimeout(function () {
 
                         scrollToBottom();
+
+                        isInitialLoading = false;
 
                     }, 100);
 
@@ -820,6 +826,10 @@ $(document).ready(function () {
     $messagesArea.on(
         "scroll",
         function () {
+
+            if (isInitialLoading) {
+                return;
+            }
 
             if (this.scrollTop <= 50) {
 
