@@ -385,6 +385,15 @@ $(document).ready(function () {
 
     }
 
+    // =========================
+    // MESSAGE PAGINATION
+    // =========================
+
+    let oldestMessageId = null;
+
+    let loadingOlderMessages = false;
+
+    let hasMoreMessages = true;
 
     // =========================
     // LOAD MESSAGES
@@ -406,6 +415,14 @@ $(document).ready(function () {
 
                 $messagesArea.empty();
 
+                oldestMessageId =
+                    messages.length
+                        ? messages[0].id
+                        : null;
+
+                hasMoreMessages =
+                    messages.length === 20;
+
 
                 if (!messages.length) {
 
@@ -417,15 +434,20 @@ $(document).ready(function () {
 
 
                 messages.forEach(function (message) {
+
                     renderMessage(message);
+
                 });
+
 
                 requestAnimationFrame(function () {
 
                     scrollToBottom();
 
                     setTimeout(function () {
+
                         scrollToBottom();
+
                     }, 100);
 
                 });
@@ -447,17 +469,118 @@ $(document).ready(function () {
 
 
     // =========================
-    // RENDER MESSAGE
+    // LOAD OLDER MESSAGES
     // =========================
 
-    function renderMessage(message) {
+    function loadOlderMessages() {
 
-        console.log("CURRENT USER:", currentUser);
-        console.log("CURRENT USER ID:", currentUser && currentUser.id);
-        console.log(
-            "MESSAGE SENDER:",
-            message.sender
-        );
+        if (
+            loadingOlderMessages ||
+            !hasMoreMessages ||
+            !oldestMessageId
+        ) {
+            return;
+        }
+
+
+        loadingOlderMessages = true;
+
+
+        const element =
+            $messagesArea[0];
+
+
+        const oldScrollHeight =
+            element.scrollHeight;
+
+
+        const oldScrollTop =
+            element.scrollTop;
+
+
+        apiRequest({
+
+            url:
+                API_URL +
+                "/api/conversations/" +
+                conversationId +
+                "/messages/?before=" +
+                oldestMessageId,
+
+            type: "GET",
+
+            success: function (messages) {
+
+                if (!messages.length) {
+
+                    hasMoreMessages = false;
+
+                    return;
+
+                }
+
+
+                oldestMessageId =
+                    messages[0].id;
+
+
+                if (messages.length < 20) {
+
+                    hasMoreMessages = false;
+
+                }
+
+
+                for (let i = messages.length - 1; i >= 0; i--) {
+
+                    const $message =
+                        createMessageElement(
+                            messages[i]
+                        );
+
+                    $messagesArea.prepend(
+                        $message
+                    );
+
+                }
+
+
+                const newScrollHeight =
+                    element.scrollHeight;
+
+
+                element.scrollTop =
+                    newScrollHeight -
+                    oldScrollHeight +
+                    oldScrollTop;
+
+            },
+
+            error: function (xhr) {
+
+                console.log(
+                    "Köhnə mesajlar yüklənmədi:",
+                    xhr.responseText
+                );
+
+            },
+
+            complete: function () {
+
+                loadingOlderMessages = false;
+
+            }
+
+        });
+
+    }
+
+
+    // =========================
+    // CREATE MESSAGE ELEMENT
+    // =========================
+
+    function createMessageElement(message) {
 
         const senderId =
             message.sender &&
@@ -467,23 +590,19 @@ $(document).ready(function () {
             currentUser &&
             currentUser.id;
 
-
         const isSent =
             String(senderId) ===
             String(currentUserId);
-
 
         const messageClass =
             isSent
                 ? "sent"
                 : "received";
 
-
         const time =
             formatMessageTime(
                 message.created_at
             );
-
 
         const $message = $(`
 
@@ -499,8 +618,8 @@ $(document).ready(function () {
 
                     ${isSent
                 ? `
-                                <i class="fa-solid fa-check message-read"></i>
-                              `
+                    <i class="fa-solid fa-check message-read"></i>
+                  `
                 : ""
             }
 
@@ -512,22 +631,33 @@ $(document).ready(function () {
 
     `);
 
-
         $message
             .find("p")
             .text(message.content);
-
 
         $message
             .find("time")
             .text(time);
 
+        return $message;
+    }
+
+
+    // =========================
+    // RENDER MESSAGE
+    // =========================
+
+    function renderMessage(message) {
+
+        const $message =
+            createMessageElement(message);
 
         $messagesArea.append(
             $message
         );
-
     }
+
+
 
 
     // =========================
@@ -682,6 +812,23 @@ $(document).ready(function () {
 
     }
 
+
+    // =========================
+    // LOAD OLDER ON SCROLL
+    // =========================
+
+    $messagesArea.on(
+        "scroll",
+        function () {
+
+            if (this.scrollTop <= 50) {
+
+                loadOlderMessages();
+
+            }
+
+        }
+    );
 
     // =========================
     // CHAT SEARCH
