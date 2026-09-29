@@ -40,6 +40,16 @@ $(document).ready(function () {
 
     function connectWebSocket() {
 
+        if (
+            socket &&
+            (
+                socket.readyState === WebSocket.OPEN ||
+                socket.readyState === WebSocket.CONNECTING
+            )
+        ) {
+            return;
+        }
+
         const protocol =
             window.location.protocol === "https:"
                 ? "wss:"
@@ -100,8 +110,21 @@ $(document).ready(function () {
         socket.onclose = function () {
 
             console.log(
-                "WebSocket bağlantısı bağlandı."
+                "WebSocket bağlantısı bağlandı. Yenidən qoşulmağa çalışılır..."
             );
+
+            setTimeout(function () {
+
+                if (
+                    !socket ||
+                    socket.readyState === WebSocket.CLOSED
+                ) {
+
+                    connectWebSocket();
+
+                }
+
+            }, 1000);
 
         };
 
@@ -114,6 +137,27 @@ $(document).ready(function () {
 
         };
     }
+
+    document.addEventListener("visibilitychange", function () {
+
+        if (document.visibilityState === "visible") {
+
+            if (
+                !socket ||
+                socket.readyState !== WebSocket.OPEN
+            ) {
+
+                console.log(
+                    "Səhifə yenidən aktiv oldu. WebSocket yenidən qoşulur..."
+                );
+
+                connectWebSocket();
+
+            }
+
+        }
+
+    });
 
 
     // =========================
