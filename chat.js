@@ -452,9 +452,15 @@ $(document).ready(function () {
 
                         scrollToBottom();
 
-                        isInitialLoading = false;
+                        setTimeout(function () {
 
-                    }, 100);
+                            scrollToBottom();
+
+                            isInitialLoading = false;
+
+                        }, 300);
+
+                    }, 300);
 
                 });
 
