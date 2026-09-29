@@ -138,9 +138,25 @@ $(document).ready(function () {
         };
     }
 
-    document.addEventListener("visibilitychange", function () {
+    document.addEventListener(
+        "visibilitychange",
+        function () {
 
-        if (document.visibilityState === "visible") {
+            if (
+                document.visibilityState !== "visible"
+            ) {
+                return;
+            }
+
+
+            console.log(
+                "Səhifə yenidən aktiv oldu."
+            );
+
+
+            // =========================
+            // WEBSOCKET CHECK
+            // =========================
 
             if (
                 !socket ||
@@ -148,16 +164,23 @@ $(document).ready(function () {
             ) {
 
                 console.log(
-                    "Səhifə yenidən aktiv oldu. WebSocket yenidən qoşulur..."
+                    "WebSocket yenidən qoşulur..."
                 );
 
                 connectWebSocket();
 
             }
 
-        }
 
-    });
+            // =========================
+            // CHECK NEW MESSAGES
+            // =========================
+
+            checkNewMessages();
+
+        }
+    );
+
 
 
     // =========================
@@ -429,8 +452,8 @@ $(document).ready(function () {
                 if (!messages.length) {
 
                     scrollToBottom();
-
                     isInitialLoading = false;
+                    connectWebSocket();
 
                     return;
 
@@ -457,6 +480,7 @@ $(document).ready(function () {
                             scrollToBottom();
 
                             isInitialLoading = false;
+                            connectWebSocket();
 
                         }, 300);
 
@@ -617,31 +641,30 @@ $(document).ready(function () {
             );
 
         const $message = $(`
+            <div class="message-row ${messageClass}"
+                data-message-id="${message.id || ""}">
 
-        <div class="message-row ${messageClass}">
+                <div class="message-bubble">
 
-            <div class="message-bubble">
+                    <p></p>
 
-                <p></p>
+                    <div class="message-meta">
 
-                <div class="message-meta">
+                        <time></time>
 
-                    <time></time>
-
-                    ${isSent
+                        ${isSent
                 ? `
-                    <i class="fa-solid fa-check message-read"></i>
-                  `
+                                <i class="fa-solid fa-check message-read"></i>
+                            `
                 : ""
             }
+
+                    </div>
 
                 </div>
 
             </div>
-
-        </div>
-
-    `);
+        `);
 
         $message
             .find("p")
@@ -1290,6 +1313,67 @@ $(document).ready(function () {
 
     loadMessages();
 
-    connectWebSocket();
+    // =========================
+    // CHECK NEW MESSAGES
+    // =========================
+
+    function checkNewMessages() {
+
+        apiRequest({
+
+            url:
+                API_URL +
+                "/api/conversations/" +
+                conversationId +
+                "/messages/",
+
+            type: "GET",
+
+            success: function (messages) {
+
+                if (!messages.length) {
+                    return;
+                }
+
+                let addedNewMessage = false;
+
+                messages.forEach(function (message) {
+
+                    const exists =
+                        $messagesArea.find(
+                            `[data-message-id="${message.id}"]`
+                        ).length;
+
+                    if (!exists) {
+
+                        renderMessage(message);
+
+                        addedNewMessage = true;
+
+                    }
+
+                });
+
+                if (addedNewMessage) {
+
+                    scrollToBottom();
+
+                }
+
+            },
+
+            error: function (xhr) {
+
+                console.log(
+                    "Yeni mesajlar yoxlanılmadı:",
+                    xhr.responseText
+                );
+
+            }
+
+        });
+
+    }
+
 
 });
