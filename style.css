@@ -1851,10 +1851,13 @@ textarea {
 
 .chat-search-box {
   position: fixed;
-  top: 72px;
-  left: 16px;
-  right: 16px;
-  z-index: 900;
+  top: 7px;
+  z-index: 1000;
+  left: 50% !important;
+  right: auto !important;
+  width: 500px !important;
+  max-width: calc(100% - 32px) !important;
+  transform: translateX(-50%) !important;
   height: 48px;
   padding: 0 12px;
   display: flex;
@@ -1862,7 +1865,6 @@ textarea {
   gap: 10px;
   opacity: 0;
   visibility: hidden;
-  transform: translateY(-8px);
   background: #ffffff;
   border: 1px solid #e3e8f0;
   border-radius: 14px;
