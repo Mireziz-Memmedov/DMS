@@ -1875,7 +1875,7 @@ textarea {
 .chat-search-box.active {
   opacity: 1;
   visibility: visible;
-  transform: translateY(0);
+  transform: translateX(-50%) translateY(0) !important;
 }
 
 .chat-search-box > i {
