@@ -471,20 +471,9 @@ $(document).ready(function () {
 
                     scrollToBottom();
 
-                    setTimeout(function () {
+                    isInitialLoading = false;
 
-                        scrollToBottom();
-
-                        setTimeout(function () {
-
-                            scrollToBottom();
-
-                            isInitialLoading = false;
-                            connectWebSocket();
-
-                        }, 300);
-
-                    }, 300);
+                    connectWebSocket();
 
                 });
 
@@ -832,19 +821,35 @@ $(document).ready(function () {
 
     function scrollToBottom() {
 
-        const element =
-            $messagesArea[0];
-
+        const element = $messagesArea[0];
 
         if (!element) {
             return;
         }
 
+        const footer = document.querySelector(".message-input-area");
 
-        element.scrollTop =
-            element.scrollHeight -
-            element.clientHeight;
+        const footerHeight = footer
+            ? footer.getBoundingClientRect().height
+            : 0;
 
+        requestAnimationFrame(function () {
+
+            element.scrollTop =
+                element.scrollHeight -
+                element.clientHeight +
+                footerHeight;
+
+            setTimeout(function () {
+
+                element.scrollTop =
+                    element.scrollHeight -
+                    element.clientHeight +
+                    footerHeight;
+
+            }, 100);
+
+        });
     }
 
 

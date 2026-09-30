@@ -1924,6 +1924,8 @@ textarea {
   padding: 74px 16px 100px;
   overflow-y: auto;
   scroll-behavior: smooth;
+  scroll-padding-top: 74px;
+  scroll-padding-bottom: 100px;
 }
 
 .message-date {
@@ -2331,9 +2333,9 @@ body.dark-mode .emoji-item:hover {
   }
   .messages-area {
     padding-top: 74px;
-    padding-left: 10px;
-    padding-right: 10px;
     padding-bottom: 100px;
+    scroll-padding-top: 74px;
+    scroll-padding-bottom: 100px;
   }
   .message-bubble {
     max-width: 84%;
