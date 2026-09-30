@@ -101,6 +101,23 @@ $(document).ready(function () {
                     data.message
                 );
 
+                saveCachedMessages(
+                    Array.from(
+                        $messagesArea.find(".message-row")
+                    ).map(function () {
+
+                        const $row = $(this);
+
+                        return {
+                            id: $row.attr("data-message-id"),
+                            content: $row.find("p").text(),
+                            created_at: new Date().toISOString(),
+                            sender: null
+                        };
+
+                    })
+                );
+
                 scrollToBottom();
 
             }
@@ -421,11 +438,92 @@ $(document).ready(function () {
     let isInitialLoading = true;
 
     // =========================
+    // MESSAGE CACHE
+    // =========================
+
+    function getCachedMessages() {
+
+        try {
+
+            return JSON.parse(
+                sessionStorage.getItem(
+                    "chatMessages_" + conversationId
+                )
+            ) || [];
+
+        } catch (error) {
+
+            return [];
+
+        }
+    }
+
+
+    function saveCachedMessages(messages) {
+
+        try {
+
+            // Yalnız son 20 mesajı saxla
+            const last20Messages =
+                messages.slice(-20);
+
+            sessionStorage.setItem(
+                "chatMessages_" + conversationId,
+                JSON.stringify(last20Messages)
+            );
+
+        } catch (error) {
+
+            console.log(
+                "Mesaj cache yadda saxlanmadı:",
+                error
+            );
+
+        }
+    }
+
+
+    function renderCachedMessages() {
+
+        const cachedMessages =
+            getCachedMessages();
+
+        if (!cachedMessages.length) {
+            return false;
+        }
+
+        $messagesArea.empty();
+
+        cachedMessages.forEach(function (message) {
+
+            renderMessage(message);
+
+        });
+
+        oldestMessageId =
+            cachedMessages[0].id;
+
+        hasMoreMessages =
+            cachedMessages.length === 20;
+
+        scrollToBottom();
+
+        return true;
+    }
+
+
+
+    // =========================
     // LOAD MESSAGES
     // =========================
 
     function loadMessages() {
 
+        // Əvvəl cache-də olan son 20 mesajı göstər
+        renderCachedMessages();
+
+
+        // Sonra serverdən yenilə
         apiRequest({
 
             url:
@@ -440,6 +538,9 @@ $(document).ready(function () {
 
                 $messagesArea.empty();
 
+                // Son 20 mesajı cache-də saxla
+                saveCachedMessages(messages);
+
                 oldestMessageId =
                     messages.length
                         ? messages[0].id
@@ -452,7 +553,9 @@ $(document).ready(function () {
                 if (!messages.length) {
 
                     scrollToBottom();
+
                     isInitialLoading = false;
+
                     connectWebSocket();
 
                     return;
@@ -485,6 +588,8 @@ $(document).ready(function () {
                     "Mesajlar yüklənmədi:",
                     xhr.responseText
                 );
+
+                isInitialLoading = false;
 
             }
 
