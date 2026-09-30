@@ -507,21 +507,15 @@ $(document).ready(function () {
             return;
         }
 
-
         loadingOlderMessages = true;
 
-
-        const element =
-            $messagesArea[0];
-
+        const element = $messagesArea[0];
 
         const oldScrollHeight =
             element.scrollHeight;
 
-
         const oldScrollTop =
             element.scrollTop;
-
 
         apiRequest({
 
@@ -539,24 +533,23 @@ $(document).ready(function () {
                 if (!messages.length) {
 
                     hasMoreMessages = false;
+                    loadingOlderMessages = false;
 
                     return;
-
                 }
-
 
                 oldestMessageId =
                     messages[0].id;
 
-
                 if (messages.length < 20) {
-
                     hasMoreMessages = false;
-
                 }
 
-
-                for (let i = messages.length - 1; i >= 0; i--) {
+                for (
+                    let i = messages.length - 1;
+                    i >= 0;
+                    i--
+                ) {
 
                     const $message =
                         createMessageElement(
@@ -566,19 +559,21 @@ $(document).ready(function () {
                     $messagesArea.prepend(
                         $message
                     );
-
                 }
-
 
                 const newScrollHeight =
                     element.scrollHeight;
 
-
-                element.scrollTop =
+                const scrollDifference =
                     newScrollHeight -
-                    oldScrollHeight +
-                    oldScrollTop;
+                    oldScrollHeight;
 
+                // ƏVVƏLKİ MESAJ EKRANDA EYNİ YERDƏ QALIR
+                element.scrollTop =
+                    oldScrollTop +
+                    scrollDifference;
+
+                loadingOlderMessages = false;
             },
 
             error: function (xhr) {
@@ -588,16 +583,9 @@ $(document).ready(function () {
                     xhr.responseText
                 );
 
-            },
-
-            complete: function () {
-
                 loadingOlderMessages = false;
-
             }
-
         });
-
     }
 
 
@@ -865,10 +853,12 @@ $(document).ready(function () {
                 return;
             }
 
-            if (this.scrollTop <= 50) {
+            if (
+                this.scrollTop <= 10 &&
+                !loadingOlderMessages
+            ) {
 
                 loadOlderMessages();
-
             }
 
         }
