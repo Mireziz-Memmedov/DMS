@@ -2067,7 +2067,7 @@ textarea {
   outline: 0;
   background: transparent;
   color: #172033;
-  font-size: 14px;
+  font-size: 16px;
   line-height: 20px;
 }
 #messageInput::-moz-placeholder {

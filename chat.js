@@ -81,10 +81,13 @@ $(document).ready(function () {
         "DMS_DB";
 
     const DB_VERSION =
-        3;
+        4;
 
     const MESSAGE_STORE =
         "messages";
+
+    const CONVERSATION_STORE =
+        "conversations";
 
 
     const dbRequest =
@@ -100,6 +103,10 @@ $(document).ready(function () {
             db =
                 event.target.result;
 
+
+            // =====================================================
+            // MESSAGE STORE
+            // =====================================================
 
             if (
                 !db.objectStoreNames.contains(
@@ -135,6 +142,26 @@ $(document).ready(function () {
 
             }
 
+
+            // =====================================================
+            // CONVERSATION STORE
+            // =====================================================
+
+            if (
+                !db.objectStoreNames.contains(
+                    CONVERSATION_STORE
+                )
+            ) {
+
+                db.createObjectStore(
+                    CONVERSATION_STORE,
+                    {
+                        keyPath: "conversationId"
+                    }
+                );
+
+            }
+
         };
 
 
@@ -144,10 +171,17 @@ $(document).ready(function () {
             db =
                 event.target.result;
 
+
             console.log(
                 "IndexedDB hazırdır."
             );
 
+
+            // İstifadəçi məlumatını dərhal göstər
+            loadConversationFromDB();
+
+
+            // Mesajları dərhal göstər
             loadMessagesFromDB();
 
         };
@@ -219,6 +253,133 @@ $(document).ready(function () {
 
                 console.log(
                     "Mesaj IndexedDB-yə yazılmadı:",
+                    event.target.error
+                );
+
+            };
+
+    }
+
+    // =========================================================
+    // SAVE CONVERSATION TO INDEXEDDB
+    // =========================================================
+
+    function saveConversationToDB(otherUser) {
+
+        if (
+            !db ||
+            !otherUser ||
+            !conversationId
+        ) {
+
+            return;
+        }
+
+
+        const transaction =
+            db.transaction(
+                CONVERSATION_STORE,
+                "readwrite"
+            );
+
+
+        const store =
+            transaction.objectStore(
+                CONVERSATION_STORE
+            );
+
+
+        store.put({
+
+            conversationId:
+                String(conversationId),
+
+            user:
+                otherUser
+
+        });
+
+
+        transaction.onerror =
+            function (event) {
+
+                console.log(
+                    "İstifadəçi IndexedDB-yə yazılmadı:",
+                    event.target.error
+                );
+
+            };
+
+    }
+
+
+
+    // =========================================================
+    // LOAD CONVERSATION FROM INDEXEDDB
+    // =========================================================
+
+    function loadConversationFromDB() {
+
+        if (
+            !db ||
+            !conversationId
+        ) {
+
+            return;
+        }
+
+
+        const transaction =
+            db.transaction(
+                CONVERSATION_STORE,
+                "readonly"
+            );
+
+
+        const store =
+            transaction.objectStore(
+                CONVERSATION_STORE
+            );
+
+
+        const request =
+            store.get(
+                String(conversationId)
+            );
+
+
+        request.onsuccess =
+            function () {
+
+                const cachedConversation =
+                    request.result;
+
+
+                if (
+                    !cachedConversation ||
+                    !cachedConversation.user
+                ) {
+
+                    return;
+                }
+
+
+                const otherUser =
+                    cachedConversation.user;
+
+
+                renderChatUser(
+                    otherUser
+                );
+
+            };
+
+
+        request.onerror =
+            function (event) {
+
+                console.log(
+                    "İstifadəçi IndexedDB-dən oxunmadı:",
                     event.target.error
                 );
 
@@ -816,6 +977,120 @@ $(document).ready(function () {
         }
     );
 
+    // =========================================================
+    // RENDER CHAT USER
+    // =========================================================
+
+    function renderChatUser(otherUser) {
+
+        if (!otherUser) {
+            return;
+        }
+
+
+        // =====================================================
+        // USER NAME
+        // =====================================================
+
+        let fullName =
+            (
+                otherUser.first_name +
+                " " +
+                otherUser.last_name
+            ).trim();
+
+
+        if (!fullName) {
+
+            fullName =
+                otherUser.username ||
+                "İstifadəçi";
+
+        }
+
+
+        $("#chatUserName")
+            .text(
+                fullName
+            );
+
+
+        // =====================================================
+        // AVATAR
+        // =====================================================
+
+        let avatarText = "";
+
+
+        if (
+            otherUser.first_name
+        ) {
+
+            avatarText +=
+                otherUser.first_name
+                    .charAt(0)
+                    .toUpperCase();
+
+        }
+
+
+        if (
+            otherUser.last_name
+        ) {
+
+            avatarText +=
+                otherUser.last_name
+                    .charAt(0)
+                    .toUpperCase();
+
+        }
+
+
+        if (!avatarText) {
+
+            avatarText =
+                otherUser.username
+                    ? otherUser.username
+                        .charAt(0)
+                        .toUpperCase()
+                    : "U";
+
+        }
+
+
+        $("#chatUserAvatar")
+            .text(
+                avatarText
+            );
+
+
+        // =====================================================
+        // STATUS
+        // =====================================================
+
+        if (
+            otherUser.last_seen
+        ) {
+
+            $("#chatUserStatus")
+                .text(
+                    "son görülmə: " +
+                    formatLastSeen(
+                        otherUser.last_seen
+                    )
+                );
+
+        } else {
+
+            $("#chatUserStatus")
+                .text(
+                    "—"
+                );
+
+        }
+
+    }
+
 
     // =========================================================
     // LOAD CONVERSATION
@@ -900,106 +1175,15 @@ $(document).ready(function () {
                     }
 
 
-                    // =================================================
-                    // USER NAME
-                    // =================================================
-
-                    let fullName =
-                        (
-                            otherUser.first_name +
-                            " " +
-                            otherUser.last_name
-                        ).trim();
+                    renderChatUser(
+                        otherUser
+                    );
 
 
-                    if (!fullName) {
-
-                        fullName =
-                            otherUser.username ||
-                            "İstifadəçi";
-
-                    }
-
-
-                    $("#chatUserName")
-                        .text(
-                            fullName
-                        );
-
-
-                    // =================================================
-                    // AVATAR
-                    // =================================================
-
-                    let avatarText = "";
-
-
-                    if (
-                        otherUser.first_name
-                    ) {
-
-                        avatarText +=
-                            otherUser.first_name
-                                .charAt(0)
-                                .toUpperCase();
-
-                    }
-
-
-                    if (
-                        otherUser.last_name
-                    ) {
-
-                        avatarText +=
-                            otherUser.last_name
-                                .charAt(0)
-                                .toUpperCase();
-
-                    }
-
-
-                    if (!avatarText) {
-
-                        avatarText =
-                            otherUser.username
-                                ? otherUser.username
-                                    .charAt(0)
-                                    .toUpperCase()
-                                : "U";
-
-                    }
-
-
-                    $("#chatUserAvatar")
-                        .text(
-                            avatarText
-                        );
-
-
-                    // =================================================
-                    // STATUS
-                    // =================================================
-
-                    if (
-                        otherUser.last_seen
-                    ) {
-
-                        $("#chatUserStatus")
-                            .text(
-                                "son görülmə: " +
-                                formatLastSeen(
-                                    otherUser.last_seen
-                                )
-                            );
-
-                    } else {
-
-                        $("#chatUserStatus")
-                            .text(
-                                "—"
-                            );
-
-                    }
+                    // API-dən gələn ən son məlumatı IndexedDB-də saxla
+                    saveConversationToDB(
+                        otherUser
+                    );
 
                 },
 
