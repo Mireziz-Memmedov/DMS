@@ -1438,19 +1438,6 @@ $(document).ready(function () {
         // 3. FIFO CONTENT FALLBACK
         // -----------------------------------------------------
 
-        /*
-         * Reverse istifadə etmirik.
-         *
-         * Eyni mətn:
-         *
-         * salam
-         * salam
-         * salam
-         *
-         * olduqda birinci server mesajı
-         * birinci optimistic mesajla uyğunlaşır.
-         */
-
         const optimisticMessages =
             $messagesArea
                 .find(
@@ -1541,10 +1528,6 @@ $(document).ready(function () {
             );
 
 
-        /*
-         * Əgər real mesaj artıq render olunubsa,
-         * optimistic duplicate-dır.
-         */
         if (
             renderedMessageIds.has(
                 serverMessageId
@@ -1557,15 +1540,6 @@ $(document).ready(function () {
 
         }
 
-
-        /*
-         * ƏSAS FIX:
-         *
-         * OPTIMISTIC ELEMENT SİLİNMİR.
-         *
-         * Həmin element real server mesajına
-         * çevrilir.
-         */
 
         $optimistic
             .removeClass(
@@ -1693,10 +1667,6 @@ $(document).ready(function () {
         }
 
 
-        /*
-         * Optimistic mesaj üçün ID Set-ə
-         * heç nə əlavə etmirik.
-         */
         if (message.optimistic) {
 
             const $message =
@@ -1855,9 +1825,6 @@ $(document).ready(function () {
                 .substring(2, 9);
 
 
-        /*
-         * Input dərhal təmizlənir.
-         */
         $messageInput.val("");
 
 
@@ -1894,11 +1861,6 @@ $(document).ready(function () {
         };
 
 
-        /*
-         * Serveri gözləmirik.
-         *
-         * Mesaj dərhal görünür.
-         */
         renderMessage(
             optimisticMessage
         );
@@ -2208,9 +2170,6 @@ $(document).ready(function () {
                     }
 
 
-                    /*
-                     * Ən köhnədən ən yeniyə.
-                     */
                     for (
                         let i =
                             validMessages.length - 1;
@@ -2538,10 +2497,6 @@ $(document).ready(function () {
                 }
 
 
-                /*
-                 * ƏVVƏL optimistic mesajı
-                 * real mesaja çevir.
-                 */
                 const reconciled =
                     reconcileOptimisticMessage(
                         message
@@ -2550,10 +2505,6 @@ $(document).ready(function () {
 
                 if (reconciled) {
 
-                    /*
-                     * Artıq DOM-a yeni element
-                     * əlavə etmək lazım deyil.
-                     */
                     return;
 
                 }
@@ -2832,10 +2783,6 @@ $(document).ready(function () {
                                 );
 
 
-                                /*
-                                 * Əvvəl optimistic
-                                 * reconcile.
-                                 */
                                 if (
                                     reconcileOptimisticMessage(
                                         message
@@ -2894,7 +2841,7 @@ $(document).ready(function () {
 
 
     // =========================================================
-    // VISIBILITY CHANGE
+    // VISIBILITY CHANGE & CLEANUP (10/10 FIX)
     // =========================================================
 
     document.addEventListener(
@@ -2926,17 +2873,33 @@ $(document).ready(function () {
             }
 
 
-            /*
-             * İstifadəçi məlumatını yenilə.
-             */
             loadConversation();
 
-
-            /*
-             * Telefon ekranı bağlı olarkən gələn
-             * mesajları yoxla.
-             */
             checkNewMessages();
+
+        }
+    );
+
+
+    /*
+     * Memory leak-lərin qarşısını almaq üçün
+     * səhifədən çıxıldıqda timer və socket təmizlənir.
+     */
+    window.addEventListener(
+        "beforeunload",
+        function () {
+
+            if (presenceTimer) {
+                clearInterval(presenceTimer);
+            }
+
+            if (reconnectTimer) {
+                clearTimeout(reconnectTimer);
+            }
+
+            if (socket) {
+                socket.close();
+            }
 
         }
     );
@@ -3153,7 +3116,7 @@ $(document).ready(function () {
 
 
     // =========================================================
-    // PHOTO
+    // PHOTO & FILE
     // =========================================================
 
     $("#photoButton").on(
@@ -3170,10 +3133,6 @@ $(document).ready(function () {
         }
     );
 
-
-    // =========================================================
-    // FILE
-    // =========================================================
 
     $("#fileButton").on(
         "click",
@@ -3216,7 +3175,7 @@ $(document).ready(function () {
 
 
     // =========================================================
-    // MUTE
+    // MUTE, CLEAR & BLOCK
     // =========================================================
 
     $("#muteChatButton").on(
@@ -3226,7 +3185,6 @@ $(document).ready(function () {
             $("#chatMoreMenu")
                 .removeClass("active");
 
-
             console.log(
                 "Bildirişlər susduruldu."
             );
@@ -3235,17 +3193,12 @@ $(document).ready(function () {
     );
 
 
-    // =========================================================
-    // CLEAR CHAT
-    // =========================================================
-
     $("#clearChatButton").on(
         "click",
         function () {
 
             $("#chatMoreMenu")
                 .removeClass("active");
-
 
             console.log(
                 "Söhbəti təmizlə düyməsi."
@@ -3255,17 +3208,12 @@ $(document).ready(function () {
     );
 
 
-    // =========================================================
-    // BLOCK USER
-    // =========================================================
-
     $("#blockUserButton").on(
         "click",
         function () {
 
             $("#chatMoreMenu")
                 .removeClass("active");
-
 
             console.log(
                 "Əməkdaş bloklama düyməsi."
@@ -3392,28 +3340,10 @@ $(document).ready(function () {
     // INITIALIZATION
     // =========================================================
 
-    /*
-     * ÇOX VACİB:
-     *
-     * Artıq loadMessages() IndexedDB-ni gözləmir.
-     *
-     * 1. API
-     * 2. WebSocket
-     * 3. IndexedDB
-     *
-     * hamısı müstəqil işləyir.
-     *
-     * Buna görə səhifə açılan kimi:
-     *
-     * cache varsa -> dərhal
-     * API hazırdırsa -> dərhal
-     * WebSocket gəlirsə -> dərhal
-     */
-
     loadConversation();
 
     loadMessages();
 
     connectWebSocket();
 
-});
+});  
