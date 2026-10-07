@@ -9,9 +9,7 @@ $(document).ready(function () {
             .get("conversation");
 
     if (!conversationId) {
-
         window.location.href = "chats.html";
-
         return;
     }
 
@@ -23,15 +21,11 @@ $(document).ready(function () {
     let currentUser = null;
 
     try {
-
         currentUser = JSON.parse(
             localStorage.getItem("currentUser")
         );
-
     } catch (error) {
-
         currentUser = null;
-
     }
 
 
@@ -62,7 +56,13 @@ $(document).ready(function () {
 
     let reconnectTimer = null;
 
+    let presenceTimer = null;
+
     let isInitialLoading = true;
+
+    let cacheLoaded = false;
+
+    let apiLoaded = false;
 
     let loadingOlderMessages = false;
 
@@ -96,6 +96,10 @@ $(document).ready(function () {
             DB_VERSION
         );
 
+
+    // =========================================================
+    // INDEXEDDB UPGRADE
+    // =========================================================
 
     dbRequest.onupgradeneeded =
         function (event) {
@@ -165,24 +169,41 @@ $(document).ready(function () {
         };
 
 
+    // =========================================================
+    // INDEXEDDB READY
+    // =========================================================
+
     dbRequest.onsuccess =
         function (event) {
 
             db =
                 event.target.result;
 
-
             console.log(
                 "IndexedDB hazırdır."
             );
 
 
-            // İstifadəçi məlumatını dərhal göstər
+            // Əvvəl istifadəçi məlumatını cache-dən göstər
             loadConversationFromDB();
 
 
-            // Mesajları dərhal göstər
-            loadMessagesFromDB();
+            // Əvvəl mesajları cache-dən göstər
+            loadMessagesFromDB(
+                function () {
+
+                    cacheLoaded = true;
+
+                    /*
+                     * Cache ekrana gəldikdən sonra API yüklənir.
+                     *
+                     * Əsas düzəliş budur:
+                     * API artıq IndexedDB ilə yarışmır.
+                     */
+                    loadMessages();
+
+                }
+            );
 
         };
 
@@ -194,6 +215,14 @@ $(document).ready(function () {
                 "IndexedDB xətası:",
                 event.target.error
             );
+
+            /*
+             * IndexedDB işləməsə belə
+             * chat yenə API-dən işləməlidir.
+             */
+            cacheLoaded = true;
+
+            loadMessages();
 
         };
 
@@ -210,7 +239,6 @@ $(document).ready(function () {
             !message.id ||
             message.optimistic
         ) {
-
             return;
         }
 
@@ -234,7 +262,7 @@ $(document).ready(function () {
                 message.id,
 
             conversationId:
-                conversationId,
+                String(conversationId),
 
             sender:
                 message.sender,
@@ -260,6 +288,7 @@ $(document).ready(function () {
 
     }
 
+
     // =========================================================
     // SAVE CONVERSATION TO INDEXEDDB
     // =========================================================
@@ -271,7 +300,6 @@ $(document).ready(function () {
             !otherUser ||
             !conversationId
         ) {
-
             return;
         }
 
@@ -313,7 +341,6 @@ $(document).ready(function () {
     }
 
 
-
     // =========================================================
     // LOAD CONVERSATION FROM INDEXEDDB
     // =========================================================
@@ -324,7 +351,6 @@ $(document).ready(function () {
             !db ||
             !conversationId
         ) {
-
             return;
         }
 
@@ -359,17 +385,12 @@ $(document).ready(function () {
                     !cachedConversation ||
                     !cachedConversation.user
                 ) {
-
                     return;
                 }
 
 
-                const otherUser =
-                    cachedConversation.user;
-
-
                 renderChatUser(
-                    otherUser
+                    cachedConversation.user
                 );
 
             };
@@ -392,9 +413,14 @@ $(document).ready(function () {
     // LOAD MESSAGES FROM INDEXEDDB
     // =========================================================
 
-    function loadMessagesFromDB() {
+    function loadMessagesFromDB(onComplete) {
 
         if (!db) {
+
+            if (typeof onComplete === "function") {
+                onComplete();
+            }
+
             return;
         }
 
@@ -420,7 +446,7 @@ $(document).ready(function () {
 
         const request =
             index.getAll(
-                conversationId
+                String(conversationId)
             );
 
 
@@ -430,14 +456,7 @@ $(document).ready(function () {
                 const messages =
                     request.result || [];
 
-
-                if (
-                    !messages.length ||
-                    !isInitialLoading
-                ) {
-
-                    return;
-                }
+                console.log("IDB MESSAGES:", messages);
 
 
                 messages.sort(
@@ -458,65 +477,88 @@ $(document).ready(function () {
                     messages.slice(-20);
 
 
-                $messagesArea.empty();
+                /*
+                 * Cache varsa birbaşa göstər.
+                 */
+                if (lastMessages.length) {
 
-                renderedMessageIds.clear();
+                    $messagesArea.empty();
 
-
-                lastMessages.forEach(
-                    function (message) {
-
-                        if (
-                            !message ||
-                            !message.id
-                        ) {
-
-                            return;
-                        }
+                    renderedMessageIds.clear();
 
 
-                        const messageId =
-                            String(
-                                message.id
+                    lastMessages.forEach(
+                        function (message) {
+
+                            if (
+                                !message ||
+                                !message.id
+                            ) {
+                                return;
+                            }
+
+
+                            const messageId =
+                                String(
+                                    message.id
+                                );
+
+
+                            if (
+                                renderedMessageIds.has(
+                                    messageId
+                                )
+                            ) {
+                                return;
+                            }
+
+
+                            renderedMessageIds.add(
+                                messageId
                             );
 
 
-                        if (
-                            renderedMessageIds.has(
-                                messageId
-                            )
-                        ) {
-
-                            return;
-                        }
-
-
-                        renderedMessageIds.add(
-                            messageId
-                        );
-
-
-                        const $message =
-                            createMessageElement(
+                            liveMessages.set(
+                                messageId,
                                 message
                             );
 
 
-                        $messagesArea.append(
-                            $message
-                        );
-
-                    }
-                );
+                            const $message =
+                                createMessageElement(
+                                    message
+                                );
 
 
-                requestAnimationFrame(
-                    function () {
+                            $messagesArea.append(
+                                $message
+                            );
 
-                        scrollToBottom();
+                        }
+                    );
 
-                    }
-                );
+
+                    requestAnimationFrame(
+                        function () {
+
+                            scrollToBottom();
+
+                        }
+                    );
+
+                }
+
+
+                /*
+                 * Cache-dən oxunan mesajlar artıq
+                 * initial state hesab olunur.
+                 */
+                isInitialLoading = false;
+
+
+                if (typeof onComplete === "function") {
+                    onComplete();
+                }
 
             };
 
@@ -529,62 +571,12 @@ $(document).ready(function () {
                     event.target.error
                 );
 
-            };
-
-    }
+                isInitialLoading = false;
 
 
-    // =========================================================
-    // OPTIONAL CACHE CLEANUP
-    // =========================================================
-
-    function deleteConversationCache() {
-
-        if (!db) {
-            return;
-        }
-
-
-        const transaction =
-            db.transaction(
-                MESSAGE_STORE,
-                "readwrite"
-            );
-
-
-        const store =
-            transaction.objectStore(
-                MESSAGE_STORE
-            );
-
-
-        const index =
-            store.index(
-                "conversationId"
-            );
-
-
-        const request =
-            index.openCursor(
-                conversationId
-            );
-
-
-        request.onsuccess =
-            function (event) {
-
-                const cursor =
-                    event.target.result;
-
-
-                if (!cursor) {
-                    return;
+                if (typeof onComplete === "function") {
+                    onComplete();
                 }
-
-
-                cursor.delete();
-
-                cursor.continue();
 
             };
 
@@ -597,7 +589,6 @@ $(document).ready(function () {
 
     function connectWebSocket() {
 
-        // Hazır socket varsa yenisini yaratma
         if (
             socket &&
             (
@@ -605,12 +596,10 @@ $(document).ready(function () {
                 socket.readyState === WebSocket.CONNECTING
             )
         ) {
-
             return;
         }
 
 
-        // Köhnə reconnect timer-i təmizlə
         if (reconnectTimer) {
 
             clearTimeout(
@@ -681,8 +670,9 @@ $(document).ready(function () {
         newSocket.onopen =
             function () {
 
-                // Əgər bu artıq köhnə socket-dirsə
-                if (socket !== newSocket) {
+                if (
+                    socket !== newSocket
+                ) {
                     return;
                 }
 
@@ -690,6 +680,37 @@ $(document).ready(function () {
                 console.log(
                     "WebSocket bağlantısı açıldı."
                 );
+
+
+                sendPresence();
+
+
+                if (presenceTimer) {
+
+                    clearInterval(
+                        presenceTimer
+                    );
+
+                }
+
+
+                presenceTimer =
+                    setInterval(
+                        function () {
+
+                            if (
+                                socket &&
+                                socket.readyState ===
+                                WebSocket.OPEN
+                            ) {
+
+                                sendPresence();
+
+                            }
+
+                        },
+                        30000
+                    );
 
 
                 flushPendingMessages();
@@ -704,7 +725,10 @@ $(document).ready(function () {
         newSocket.onmessage =
             function (event) {
 
-                if (socket !== newSocket) {
+
+                if (
+                    socket !== newSocket
+                ) {
                     return;
                 }
 
@@ -727,6 +751,7 @@ $(document).ready(function () {
                     );
 
                     return;
+
                 }
 
 
@@ -734,7 +759,6 @@ $(document).ready(function () {
                     !data ||
                     !data.message
                 ) {
-
                     return;
                 }
 
@@ -742,19 +766,15 @@ $(document).ready(function () {
                 const message =
                     data.message;
 
+                console.log("WS MESSAGE:", message);
 
                 if (
                     !message ||
                     !message.id
                 ) {
-
                     return;
                 }
 
-
-                // =================================================
-                // SERVER MESAJI → OPTIMISTIC MESAJI TAP
-                // =================================================
 
                 const optimisticElement =
                     findOptimisticMessage(
@@ -762,18 +782,12 @@ $(document).ready(function () {
                     );
 
 
-                if (
-                    optimisticElement
-                ) {
+                if (optimisticElement) {
 
                     optimisticElement.remove();
 
                 }
 
-
-                // =================================================
-                // REAL SERVER MESAJINI GÖSTƏR
-                // =================================================
 
                 renderMessage(
                     message
@@ -792,12 +806,25 @@ $(document).ready(function () {
         newSocket.onclose =
             function () {
 
-                if (socket !== newSocket) {
+                if (
+                    socket !== newSocket
+                ) {
                     return;
                 }
 
 
                 socket = null;
+
+
+                if (presenceTimer) {
+
+                    clearInterval(
+                        presenceTimer
+                    );
+
+                    presenceTimer = null;
+
+                }
 
 
                 console.log(
@@ -817,7 +844,9 @@ $(document).ready(function () {
         newSocket.onerror =
             function (error) {
 
-                if (socket !== newSocket) {
+                if (
+                    socket !== newSocket
+                ) {
                     return;
                 }
 
@@ -859,24 +888,56 @@ $(document).ready(function () {
 
 
     // =========================================================
-    // FLUSH PENDING MESSAGES
+    // PRESENCE
+    // =========================================================
+
+    function sendPresence() {
+
+        if (
+            !socket ||
+            socket.readyState !==
+            WebSocket.OPEN
+        ) {
+            return;
+        }
+
+
+        try {
+
+            socket.send(
+                JSON.stringify({
+                    type: "presence"
+                })
+            );
+
+        } catch (error) {
+
+            console.log(
+                "Presence göndərilmədi:",
+                error
+            );
+
+        }
+
+    }
+
+
+    // =========================================================
+    // FLUSH PENDING
     // =========================================================
 
     function flushPendingMessages() {
 
         if (
             !socket ||
-            socket.readyState !== WebSocket.OPEN
+            socket.readyState !==
+            WebSocket.OPEN
         ) {
-
             return;
         }
 
 
-        if (
-            !pendingMessages.length
-        ) {
-
+        if (!pendingMessages.length) {
             return;
         }
 
@@ -937,7 +998,6 @@ $(document).ready(function () {
                 document.visibilityState !==
                 "visible"
             ) {
-
                 return;
             }
 
@@ -949,13 +1009,20 @@ $(document).ready(function () {
 
             if (
                 !socket ||
-                socket.readyState !== WebSocket.OPEN
+                socket.readyState !==
+                WebSocket.OPEN
             ) {
 
                 connectWebSocket();
 
+            } else {
+
+                sendPresence();
+
             }
 
+
+            loadConversation();
 
             checkNewMessages();
 
@@ -977,6 +1044,7 @@ $(document).ready(function () {
         }
     );
 
+
     // =========================================================
     // RENDER CHAT USER
     // =========================================================
@@ -989,7 +1057,7 @@ $(document).ready(function () {
 
 
         // =====================================================
-        // USER NAME
+        // NAME
         // =====================================================
 
         let fullName =
@@ -1010,9 +1078,7 @@ $(document).ready(function () {
 
 
         $("#chatUserName")
-            .text(
-                fullName
-            );
+            .text(fullName);
 
 
         // =====================================================
@@ -1022,9 +1088,7 @@ $(document).ready(function () {
         let avatarText = "";
 
 
-        if (
-            otherUser.first_name
-        ) {
+        if (otherUser.first_name) {
 
             avatarText +=
                 otherUser.first_name
@@ -1034,9 +1098,7 @@ $(document).ready(function () {
         }
 
 
-        if (
-            otherUser.last_name
-        ) {
+        if (otherUser.last_name) {
 
             avatarText +=
                 otherUser.last_name
@@ -1059,35 +1121,54 @@ $(document).ready(function () {
 
 
         $("#chatUserAvatar")
-            .text(
-                avatarText
-            );
+            .text(avatarText);
 
 
         // =====================================================
         // STATUS
         // =====================================================
 
+        const $status =
+            $("#chatUserStatus");
+
+
         if (
-            otherUser.last_seen
+            otherUser.is_online === true
         ) {
 
-            $("#chatUserStatus")
+            $status
+                .text("Onlayn")
+                .removeClass("offline")
+                .addClass("online");
+
+            return;
+
+        }
+
+
+        if (otherUser.last_seen) {
+
+            $status
                 .text(
-                    "son görülmə: " +
+                    "Son giriş: " +
                     formatLastSeen(
                         otherUser.last_seen
                     )
-                );
+                )
+                .removeClass("online")
+                .addClass("offline");
 
-        } else {
-
-            $("#chatUserStatus")
-                .text(
-                    "—"
-                );
+            return;
 
         }
+
+
+        $status
+            .text(
+                "Son giriş məlum deyil"
+            )
+            .removeClass("online")
+            .addClass("offline");
 
     }
 
@@ -1135,12 +1216,9 @@ $(document).ready(function () {
                             "chats.html";
 
                         return;
+
                     }
 
-
-                    // =================================================
-                    // FIND OTHER USER
-                    // =================================================
 
                     let otherUser = null;
 
@@ -1180,7 +1258,6 @@ $(document).ready(function () {
                     );
 
 
-                    // API-dən gələn ən son məlumatı IndexedDB-də saxla
                     saveConversationToDB(
                         otherUser
                     );
@@ -1224,6 +1301,7 @@ $(document).ready(function () {
         ) {
 
             return "—";
+
         }
 
 
@@ -1250,12 +1328,10 @@ $(document).ready(function () {
 
 
     // =========================================================
-    // LOAD LAST 20 MESSAGES
+    // LOAD MESSAGES FROM API
     // =========================================================
 
     function loadMessages() {
-
-        isInitialLoading = true;
 
 
         apiRequest({
@@ -1273,87 +1349,68 @@ $(document).ready(function () {
             success:
                 function (messages) {
 
+                    console.log("API TYPE:", typeof messages);
+                    console.log("IS ARRAY:", Array.isArray(messages));
+                    console.log("API RAW:", messages);
+
                     const serverMessages =
                         Array.isArray(messages)
                             ? messages.slice(-20)
                             : [];
 
 
-                    // =================================================
-                    // OPTIMISTIC MESAJLARI SAXLA
-                    // =================================================
+                    /*
+                     * ƏSAS DÜZƏLİŞ:
+                     *
+                     * DOM-u empty() etmirik.
+                     *
+                     * Cache-dən görünən mesajlar qalır.
+                     * API-də olmayanları əlavə edirik.
+                     * API-də olanları IndexedDB-yə yazırıq.
+                     */
 
-                    const optimisticMessages = [];
-
-
-                    $messagesArea
-                        .find(".optimistic-message")
-                        .each(
-                            function () {
-
-                                const $item =
-                                    $(this);
-
-
-                                optimisticMessages.push({
-
-                                    id:
-                                        $item.attr(
-                                            "data-message-id"
-                                        ),
-
-                                    client_id:
-                                        $item.attr(
-                                            "data-client-id"
-                                        ),
-
-                                    sender:
-                                        currentUser,
-
-                                    content:
-                                        $item
-                                            .find("p")
-                                            .text(),
-
-                                    created_at:
-                                        new Date()
-                                            .toISOString(),
-
-                                    optimistic:
-                                        true
-
-                                });
-
-                            }
-                        );
-
-
-                    // =================================================
-                    // WEBSOCKET-DƏN API-DƏN ƏVVƏL GƏLƏN MESAJLAR
-                    // SAXLANILIR
-                    // =================================================
-
-                    const realtimeMessages =
-                        Array.from(
-                            liveMessages.values()
-                        );
-
-
-                    // =================================================
-                    // DOM-U TƏMİZLƏ
-                    // =================================================
-
-                    $messagesArea.empty();
-
-                    renderedMessageIds.clear();
-
-
-                    // =================================================
-                    // SERVER MESAJLARI
-                    // =================================================
 
                     serverMessages.forEach(
                         function (message) {
+
+                            if (
+                                !message ||
+                                !message.id
+                            ) {
+                                return;
+                            }
+
+
+                            const messageId =
+                                String(
+                                    message.id
+                                );
+
+
+                            liveMessages.set(
+                                messageId,
+                                message
+                            );
+
+
+                            saveMessageToDB(
+                                message
+                            );
+
+
+                            /*
+                             * Əgər artıq cache/WebSocket
+                             * tərəfindən göstərilibsə,
+                             * ikinci dəfə göstərmə.
+                             */
+                            if (
+                                renderedMessageIds.has(
+                                    messageId
+                                )
+                            ) {
+                                return;
+                            }
+
 
                             renderMessage(
                                 message
@@ -1363,106 +1420,46 @@ $(document).ready(function () {
                     );
 
 
-                    // =================================================
-                    // API-DƏ OLMAYAN REALTIME MESAJLAR
-                    // =================================================
+                    /*
+                     * Əgər API-dən gələn son 20 mesaj
+                     * cache-dən daha yenidirsə,
+                     * DOM artıq onları əlavə edib.
+                     *
+                     * Burada optimistic mesajların da
+                     * silinməsinə tələsmirik.
+                     */
 
-                    realtimeMessages.forEach(
-                        function (message) {
-
-                            if (!message || !message.id) {
-                                return;
-                            }
-
-
-                            const messageId =
-                                String(
-                                    message.id
-                                );
-
-
-                            const exists =
-                                renderedMessageIds.has(
-                                    messageId
-                                );
-
-
-                            if (!exists) {
-
-                                renderMessage(
-                                    message
-                                );
-
-                            }
-
-                        }
-                    );
-
-
-                    // =================================================
-                    // OPTIMISTIC MESAJLAR
-                    // =================================================
-
-                    optimisticMessages.forEach(
-                        function (message) {
-
-                            const messageId =
-                                String(
-                                    message.id
-                                );
-
-
-                            if (
-                                renderedMessageIds.has(
-                                    messageId
-                                )
-                            ) {
-
-                                return;
-                            }
-
-
-                            const $message =
-                                createMessageElement(
-                                    message
-                                );
-
-
-                            $messagesArea.append(
-                                $message
-                            );
-
-                        }
-                    );
-
-
-                    // =================================================
-                    // PAGINATION STATE
-                    // =================================================
 
                     oldestMessageId =
                         serverMessages.length
                             ? serverMessages[0].id
-                            : null;
+                            : oldestMessageId;
 
 
                     hasMoreMessages =
                         serverMessages.length === 20;
 
 
-                    // =================================================
-                    // INITIAL LOAD BITDI
-                    // =================================================
+                    apiLoaded = true;
 
-                    requestAnimationFrame(
-                        function () {
+                    isInitialLoading = false;
 
-                            scrollToBottom();
 
-                            isInitialLoading = false;
+                    /*
+                     * API-dən sonra həmişə aşağıya keçirik.
+                     * Amma yalnız initial chat açılışında.
+                     */
+                    if (cacheLoaded) {
 
-                        }
-                    );
+                        requestAnimationFrame(
+                            function () {
+
+                                scrollToBottom();
+
+                            }
+                        );
+
+                    }
 
                 },
 
@@ -1476,11 +1473,14 @@ $(document).ready(function () {
                     );
 
 
+                    apiLoaded = true;
+
                     isInitialLoading = false;
 
                 }
 
         });
+
 
     }
 
@@ -1496,7 +1496,6 @@ $(document).ready(function () {
             !hasMoreMessages ||
             !oldestMessageId
         ) {
-
             return;
         }
 
@@ -1513,6 +1512,7 @@ $(document).ready(function () {
             loadingOlderMessages = false;
 
             return;
+
         }
 
 
@@ -1552,6 +1552,7 @@ $(document).ready(function () {
                         loadingOlderMessages = false;
 
                         return;
+
                     }
 
 
@@ -1567,9 +1568,6 @@ $(document).ready(function () {
 
                     }
 
-
-                    // API köhnədən yeniyə gəlir.
-                    // Ona görə DOM-a tərsinə prepend edilir.
 
                     for (
                         let i =
@@ -1588,7 +1586,6 @@ $(document).ready(function () {
                             !message ||
                             !message.id
                         ) {
-
                             continue;
                         }
 
@@ -1604,7 +1601,6 @@ $(document).ready(function () {
                                 messageId
                             )
                         ) {
-
                             continue;
                         }
 
@@ -1637,10 +1633,6 @@ $(document).ready(function () {
 
                     }
 
-
-                    // =================================================
-                    // SCROLL POSITION
-                    // =================================================
 
                     requestAnimationFrame(
                         function () {
@@ -1788,13 +1780,27 @@ $(document).ready(function () {
     // ESCAPE HTML ATTRIBUTE
     // =========================================================
 
-    function escapeHtmlAttribute(value) {
+    function escapeHtmlAttribute(
+        value
+    ) {
 
         return String(value)
-            .replace(/&/g, "&amp;")
-            .replace(/"/g, "&quot;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;");
+            .replace(
+                /&/g,
+                "&amp;"
+            )
+            .replace(
+                /"/g,
+                "&quot;"
+            )
+            .replace(
+                /</g,
+                "&lt;"
+            )
+            .replace(
+                />/g,
+                "&gt;"
+            );
 
     }
 
@@ -1811,7 +1817,6 @@ $(document).ready(function () {
             !message ||
             !message.id
         ) {
-
             return;
         }
 
@@ -1822,30 +1827,20 @@ $(document).ready(function () {
             );
 
 
-        // =================================================
-        // DUPLICATE
-        // =================================================
-
         if (
             renderedMessageIds.has(
                 messageId
             )
         ) {
-
             return;
         }
 
-
-        // =================================================
-        // STATE
-        // =================================================
 
         renderedMessageIds.add(
             messageId
         );
 
 
-        // Real server mesajını yadda saxla
         if (
             !message.optimistic
         ) {
@@ -1858,10 +1853,6 @@ $(document).ready(function () {
         }
 
 
-        // =================================================
-        // DOM
-        // =================================================
-
         const $message =
             createMessageElement(
                 message
@@ -1872,10 +1863,6 @@ $(document).ready(function () {
             $message
         );
 
-
-        // =================================================
-        // CACHE
-        // =================================================
 
         if (
             !message.optimistic
@@ -1907,9 +1894,9 @@ $(document).ready(function () {
             serverMessage.client_id;
 
 
-        // =================================================
-        // 1. CLIENT ID
-        // =================================================
+        // =====================================================
+        // CLIENT ID
+        // =====================================================
 
         if (serverClientId) {
 
@@ -1934,9 +1921,9 @@ $(document).ready(function () {
         }
 
 
-        // =================================================
-        // 2. FALLBACK
-        // =================================================
+        // =====================================================
+        // FALLBACK
+        // =====================================================
 
         const serverSenderId =
             serverMessage.sender &&
@@ -1954,15 +1941,15 @@ $(document).ready(function () {
         ) {
 
             return null;
+
         }
 
 
-        // Eyni mətnli mesajlar ola bildiyinə görə
-        // ən yeni optimistic mesajdan başlayırıq.
-
         const $optimisticMessages =
             $messagesArea
-                .find(".optimistic-message")
+                .find(
+                    ".optimistic-message"
+                )
                 .toArray()
                 .reverse();
 
@@ -1975,7 +1962,9 @@ $(document).ready(function () {
 
         for (
             let i = 0;
+
             i < $optimisticMessages.length;
+
             i++
         ) {
 
@@ -2052,6 +2041,7 @@ $(document).ready(function () {
         ) {
 
             return "";
+
         }
 
 
@@ -2086,14 +2076,9 @@ $(document).ready(function () {
         if (
             message === ""
         ) {
-
             return;
         }
 
-
-        // =================================================
-        // CLIENT ID
-        // =================================================
 
         const clientId =
             "client_" +
@@ -2104,21 +2089,14 @@ $(document).ready(function () {
                 .substring(2, 9);
 
 
-        // =================================================
-        // INPUT CLEAR
-        // =================================================
-
         $messageInput.val("");
+
 
         $messageInput.css(
             "height",
             "auto"
         );
 
-
-        // =================================================
-        // OPTIMISTIC MESSAGE
-        // =================================================
 
         const optimisticMessage = {
 
@@ -2143,10 +2121,6 @@ $(document).ready(function () {
         };
 
 
-        // =================================================
-        // SHOW IMMEDIATELY
-        // =================================================
-
         renderMessage(
             optimisticMessage
         );
@@ -2155,13 +2129,10 @@ $(document).ready(function () {
         scrollToBottom();
 
 
-        // =================================================
-        // SEND VIA WEBSOCKET
-        // =================================================
-
         if (
             socket &&
-            socket.readyState === WebSocket.OPEN
+            socket.readyState ===
+            WebSocket.OPEN
         ) {
 
             try {
@@ -2203,12 +2174,9 @@ $(document).ready(function () {
 
 
             return;
+
         }
 
-
-        // =================================================
-        // SOCKET READY DEYİL
-        // =================================================
 
         console.log(
             "WebSocket hazır deyil. Mesaj növbəyə əlavə edildi."
@@ -2247,7 +2215,6 @@ $(document).ready(function () {
 
     // =========================================================
     // ENTER TO SEND
-    // SHIFT + ENTER = NEW LINE
     // =========================================================
 
     $messageInput.on(
@@ -2270,7 +2237,7 @@ $(document).ready(function () {
 
 
     // =========================================================
-    // AUTO RESIZE TEXTAREA
+    // AUTO RESIZE
     // =========================================================
 
     $messageInput.on(
@@ -2313,7 +2280,6 @@ $(document).ready(function () {
                 element.scrollTop =
                     element.scrollHeight;
 
-
             }
         );
 
@@ -2331,7 +2297,6 @@ $(document).ready(function () {
             if (
                 isInitialLoading
             ) {
-
                 return;
             }
 
@@ -2420,6 +2385,7 @@ $(document).ready(function () {
                     .show();
 
                 return;
+
             }
 
 
@@ -2707,7 +2673,6 @@ $(document).ready(function () {
             if (
                 event.key !== "Escape"
             ) {
-
                 return;
             }
 
@@ -2868,7 +2833,6 @@ $(document).ready(function () {
                         !Array.isArray(messages) ||
                         !messages.length
                     ) {
-
                         return;
                     }
 
@@ -2884,7 +2848,6 @@ $(document).ready(function () {
                                 !message ||
                                 !message.id
                             ) {
-
                                 return;
                             }
 
@@ -2895,19 +2858,29 @@ $(document).ready(function () {
                                 );
 
 
-                            // Artıq DOM-dadır
+                            /*
+                             * API-dən gələn mesajı
+                             * həmişə cache-də saxla.
+                             */
+                            saveMessageToDB(
+                                message
+                            );
+
+
+                            liveMessages.set(
+                                messageId,
+                                message
+                            );
+
+
                             if (
                                 renderedMessageIds.has(
                                     messageId
                                 )
                             ) {
-
                                 return;
                             }
 
-
-                            // Öz optimistic mesajımızdırsa
-                            // əvvəl onu sil.
 
                             const optimisticElement =
                                 findOptimisticMessage(
@@ -2929,8 +2902,7 @@ $(document).ready(function () {
                             );
 
 
-                            addedNewMessage =
-                                true;
+                            addedNewMessage = true;
 
                         }
                     );
@@ -2963,16 +2935,36 @@ $(document).ready(function () {
 
 
     // =========================================================
-    // INITIAL LOAD
+    // INITIAL START
     // =========================================================
 
+    /*
+     * Əvvəl istifadəçi məlumatını API-dən yoxla.
+     */
     loadConversation();
 
-    // WebSocket API-dən asılı deyil.
+
+    /*
+     * WebSocket müstəqil şəkildə dərhal açılsın.
+     */
     connectWebSocket();
 
-    // Serverdən son mesajları al.
-    loadMessages();
 
+    /*
+     * MESAJLARI BURADA ÇAĞIRMIRIQ.
+     *
+     * loadMessagesFromDB() tamamlandıqdan sonra
+     * özü loadMessages() çağırır.
+     *
+     * Beləliklə:
+     *
+     * IndexedDB
+     *      ↓
+     * ekran
+     *      ↓
+     * API
+     *
+     * ardıcıllığı qorunur.
+     */
 
 });
