@@ -88,7 +88,7 @@ $(document).ready(function () {
     /*
      * WebSocket hazır olmayanda göndəriləcək mesajlar.
      */
-    let pendingMessages = [];
+
 
 
     let socket = null;
@@ -453,9 +453,7 @@ $(document).ready(function () {
 
 
         store.put({
-
-            id:
-                messageId,
+            id: messageId,
 
             conversationId:
                 String(conversationId),
@@ -466,9 +464,11 @@ $(document).ready(function () {
             content:
                 message.content,
 
+            client_id:
+                message.client_id || null,
+
             created_at:
                 message.created_at
-
         });
 
 
@@ -601,66 +601,199 @@ $(document).ready(function () {
 
         try {
 
-            const transaction = db.transaction(
-                PENDING_MESSAGE_STORE,
-                "readonly"
-            );
-
-            const store = transaction.objectStore(
-                PENDING_MESSAGE_STORE
-            );
-
-            const index = store.index("conversationId");
-
-            const request = index.getAll(
-                String(conversationId)
-            );
-
-            request.onsuccess = function () {
-
-                const messages = request.result || [];
-
-                messages.sort(function (a, b) {
-                    return (
-                        getMessageTimestamp(a) -
-                        getMessageTimestamp(b)
-                    );
-                });
-
-                messages.forEach(function (message) {
-
-                    if (!message.client_id) {
-                        return;
-                    }
-
-                    // Eyni optimistic mesajı ikinci dəfə yaratma
-                    const existing = $messagesArea.find(
-                        `.message-row[data-client-id="${escapeHtmlAttribute(message.client_id)}"]`
-                    );
-
-                    if (existing.length) {
-                        return;
-                    }
-
-                    renderMessage({
-                        ...message,
-                        id: message.client_id,
-                        optimistic: true
-                    });
-                });
-
-                if (messages.length) {
-                    scrollToBottom();
-                }
-            };
-
-            request.onerror = function () {
-
-                console.warn(
-                    "Pending mesajlar IndexedDB-dən oxunmadı:",
-                    request.error
+            const transaction =
+                db.transaction(
+                    [
+                        PENDING_MESSAGE_STORE,
+                        MESSAGE_STORE
+                    ],
+                    "readonly"
                 );
-            };
+
+            const pendingStore =
+                transaction.objectStore(
+                    PENDING_MESSAGE_STORE
+                );
+
+            const messageStore =
+                transaction.objectStore(
+                    MESSAGE_STORE
+                );
+
+            const pendingIndex =
+                pendingStore.index(
+                    "conversationId"
+                );
+
+            const pendingRequest =
+                pendingIndex.getAll(
+                    String(conversationId)
+                );
+
+            const messagesRequest =
+                messageStore
+                    .index("conversationId")
+                    .getAll(
+                        String(conversationId)
+                    );
+
+
+            transaction.oncomplete =
+                function () {
+
+                    const pendingMessages =
+                        pendingRequest.result || [];
+
+                    const serverMessages =
+                        messagesRequest.result || [];
+
+
+                    /*
+                     * Artıq server tərəfindən təsdiqlənmiş
+                     * client_id-ləri yadda saxlayırıq.
+                     */
+
+                    const confirmedClientIds =
+                        new Set();
+
+                    serverMessages.forEach(
+                        function (message) {
+
+                            if (
+                                message.client_id
+                            ) {
+
+                                confirmedClientIds.add(
+                                    String(
+                                        message.client_id
+                                    )
+                                );
+
+                            }
+
+                        }
+                    );
+
+
+                    pendingMessages.sort(
+                        function (a, b) {
+
+                            return (
+                                getMessageTimestamp(a) -
+                                getMessageTimestamp(b)
+                            );
+
+                        }
+                    );
+
+
+                    pendingMessages.forEach(
+                        function (message) {
+
+                            if (
+                                !message ||
+                                !message.client_id
+                            ) {
+                                return;
+                            }
+
+
+                            const clientId =
+                                String(
+                                    message.client_id
+                                );
+
+
+                            /*
+                             * Server artıq bu mesajı
+                             * təsdiqləyibsə, optimistic
+                             * olaraq göstərmə.
+                             */
+
+                            if (
+                                confirmedClientIds.has(
+                                    clientId
+                                )
+                            ) {
+
+                                deletePendingMessageFromDB(
+                                    clientId
+                                );
+
+                                return;
+
+                            }
+
+
+                            /*
+                             * DOM-da artıq varsa,
+                             * ikinci dəfə yaratma.
+                             */
+
+                            const exists =
+                                $messagesArea
+                                    .find(".message-row")
+                                    .filter(
+                                        function () {
+
+                                            return (
+                                                String(
+                                                    $(this).attr(
+                                                        "data-client-id"
+                                                    )
+                                                ) ===
+                                                clientId
+                                            );
+
+                                        }
+                                    )
+                                    .length > 0;
+
+
+                            if (exists) {
+                                return;
+                            }
+
+
+                            renderMessage({
+
+                                ...message,
+
+                                id:
+                                    clientId,
+
+                                client_id:
+                                    clientId,
+
+                                optimistic:
+                                    true
+
+                            });
+
+                        }
+                    );
+
+
+                    if (
+                        pendingMessages.length
+                    ) {
+
+                        scrollToBottom();
+
+                    }
+
+                };
+
+
+            transaction.onerror =
+                function () {
+
+                    console.warn(
+                        "Pending mesajlar IndexedDB-dən oxunmadı:",
+                        transaction.error
+                    );
+
+                };
 
         } catch (error) {
 
@@ -668,7 +801,9 @@ $(document).ready(function () {
                 "Pending mesajlar yüklənərkən xəta:",
                 error
             );
+
         }
+
     }
 
     function deletePendingMessageFromDB(clientId) {
@@ -1834,9 +1969,15 @@ $(document).ready(function () {
 
             }
 
+            /*
+             * Optimistic DOM artıq yoxdur.
+             * Server mesajını normal şəkildə göstər.
+             */
 
-            return false;
-
+            return insertServerMessageInOrder(
+                serverMessage,
+                true
+            );
         }
 
 
@@ -3769,9 +3910,7 @@ $(document).ready(function () {
     // =========================================================
 
     loadConversation();
-
     loadMessages();
-
     connectWebSocket();
 
 });  
