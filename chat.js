@@ -12,10 +12,11 @@ $(document).ready(function () {
      * Köhnə IndexedDB-də qalmış optimistic/non-numeric
      * mesajların təmizlənməsi üçün version artırılıb.
      */
-    const DB_VERSION = 6;
+    const DB_VERSION = 8;
 
     const MESSAGE_STORE = "messages";
     const CONVERSATION_STORE = "conversations";
+    const PENDING_MESSAGE_STORE = "pendingMessages";
 
 
     // =========================================================
@@ -112,6 +113,14 @@ $(document).ready(function () {
 
     let db = null;
 
+    let dbReadyResolve;
+
+    const dbReadyPromise = new Promise(
+        function (resolve) {
+            dbReadyResolve = resolve;
+        }
+    );
+
 
     // =========================================================
     // DATABASE OPEN
@@ -191,6 +200,23 @@ $(document).ready(function () {
                     }
                 );
 
+            }
+
+            // -------------------------------------------------
+            // PENDING MESSAGE STORE
+            // -------------------------------------------------
+
+            if (!db.objectStoreNames.contains(PENDING_MESSAGE_STORE)) {
+                const store = db.createObjectStore(
+                    PENDING_MESSAGE_STORE,
+                    { keyPath: "client_id" }
+                );
+
+                store.createIndex(
+                    "conversationId",
+                    "conversationId",
+                    { unique: false }
+                );
             }
 
 
@@ -273,33 +299,24 @@ $(document).ready(function () {
     // INDEXEDDB SUCCESS
     // =========================================================
 
-    dbRequest.onsuccess =
-        function (event) {
+    dbRequest.onsuccess = function (event) {
 
-            db =
-                event.target.result;
+        db = event.target.result;
 
 
-            db.onversionchange =
-                function () {
-
-                    db.close();
-
-                };
-
-
-            /*
-             * IndexedDB hazır olan kimi
-             * cache-i göstəririk.
-             *
-             * API-ni gözləmirik.
-             */
-            loadConversationFromDB();
-
-            loadMessagesFromDB();
-
+        db.onversionchange = function () {
+            db.close();
         };
 
+
+        // IndexedDB artıq tam hazırdır.
+        dbReadyResolve(db);
+
+
+        loadConversationFromDB();
+        loadMessagesFromDB();
+        loadPendingMessagesFromDB();
+    };
 
     // =========================================================
     // INDEXEDDB ERROR
@@ -465,6 +482,221 @@ $(document).ready(function () {
 
             };
 
+    }
+
+    // =========================================================
+    // PENDING MESSAGE → INDEXEDDB
+    // =========================================================
+
+    function savePendingMessageToDB(message) {
+
+        if (!message || !message.client_id) {
+            return Promise.resolve(false);
+        }
+
+
+        return dbReadyPromise.then(
+            function () {
+
+                if (!db) {
+                    return false;
+                }
+
+
+                const pendingMessage = {
+
+                    client_id:
+                        String(
+                            message.client_id
+                        ),
+
+                    conversationId:
+                        String(
+                            conversationId
+                        ),
+
+                    sender:
+                        message.sender ||
+                        currentUser,
+
+                    content:
+                        message.content || "",
+
+                    created_at:
+                        message.created_at ||
+                        new Date().toISOString(),
+
+                    optimistic:
+                        true
+                };
+
+
+                try {
+
+                    return new Promise(
+                        function (resolve) {
+
+                            const transaction =
+                                db.transaction(
+                                    PENDING_MESSAGE_STORE,
+                                    "readwrite"
+                                );
+
+
+                            const store =
+                                transaction.objectStore(
+                                    PENDING_MESSAGE_STORE
+                                );
+
+
+                            const request =
+                                store.put(
+                                    pendingMessage
+                                );
+
+
+                            request.onsuccess =
+                                function () {
+
+                                    resolve(true);
+
+                                };
+
+
+                            request.onerror =
+                                function () {
+
+                                    console.error(
+                                        "Pending mesaj IndexedDB-yə yazılmadı:",
+                                        request.error
+                                    );
+
+                                    resolve(false);
+
+                                };
+
+                        }
+                    );
+
+                } catch (error) {
+
+                    console.error(
+                        "Pending mesaj IndexedDB xətası:",
+                        error
+                    );
+
+                    return false;
+                }
+
+            }
+        );
+
+    }
+
+    function loadPendingMessagesFromDB() {
+
+        if (!db) {
+            return;
+        }
+
+        try {
+
+            const transaction = db.transaction(
+                PENDING_MESSAGE_STORE,
+                "readonly"
+            );
+
+            const store = transaction.objectStore(
+                PENDING_MESSAGE_STORE
+            );
+
+            const index = store.index("conversationId");
+
+            const request = index.getAll(
+                String(conversationId)
+            );
+
+            request.onsuccess = function () {
+
+                const messages = request.result || [];
+
+                messages.sort(function (a, b) {
+                    return (
+                        getMessageTimestamp(a) -
+                        getMessageTimestamp(b)
+                    );
+                });
+
+                messages.forEach(function (message) {
+
+                    if (!message.client_id) {
+                        return;
+                    }
+
+                    // Eyni optimistic mesajı ikinci dəfə yaratma
+                    const existing = $messagesArea.find(
+                        `.message-row[data-client-id="${escapeHtmlAttribute(message.client_id)}"]`
+                    );
+
+                    if (existing.length) {
+                        return;
+                    }
+
+                    renderMessage({
+                        ...message,
+                        id: message.client_id,
+                        optimistic: true
+                    });
+                });
+
+                if (messages.length) {
+                    scrollToBottom();
+                }
+            };
+
+            request.onerror = function () {
+
+                console.warn(
+                    "Pending mesajlar IndexedDB-dən oxunmadı:",
+                    request.error
+                );
+            };
+
+        } catch (error) {
+
+            console.error(
+                "Pending mesajlar yüklənərkən xəta:",
+                error
+            );
+        }
+    }
+
+    function deletePendingMessageFromDB(clientId) {
+
+        if (!db || !clientId) {
+            return;
+        }
+
+        try {
+
+            const transaction = db.transaction(
+                PENDING_MESSAGE_STORE,
+                "readwrite"
+            );
+
+            const store = transaction.objectStore(
+                PENDING_MESSAGE_STORE
+            );
+
+            store.delete(String(clientId));
+
+        } catch (error) {
+
+            console.error(
+                "Pending mesaj IndexedDB-dən silinmədi:",
+                error
+            );
+        }
     }
 
 
@@ -1506,21 +1738,29 @@ $(document).ready(function () {
         }
 
 
+        // -----------------------------------------------------
+        // CLIENT ID
+        // -----------------------------------------------------
+
+        const clientId =
+            serverMessage.client_id
+                ? String(serverMessage.client_id)
+                : null;
+
+
+        // -----------------------------------------------------
+        // FIND OPTIMISTIC MESSAGE
+        // -----------------------------------------------------
+
         const $optimistic =
             findOptimisticMessage(
                 serverMessage
             );
 
 
-        if (
-            !$optimistic ||
-            !$optimistic.length
-        ) {
-
-            return false;
-
-        }
-
+        // -----------------------------------------------------
+        // SERVER MESSAGE ID
+        // -----------------------------------------------------
 
         const serverMessageId =
             String(
@@ -1528,40 +1768,111 @@ $(document).ready(function () {
             );
 
 
+        // -----------------------------------------------------
+        // IF ALREADY RENDERED
+        // -----------------------------------------------------
+
         if (
             renderedMessageIds.has(
                 serverMessageId
             )
         ) {
 
-            $optimistic.remove();
+            if ($optimistic && $optimistic.length) {
+
+                $optimistic.remove();
+
+            }
+
+
+            /*
+             * Server mesajı artıq ekrandadır.
+             * Pending record artıq lazım deyil.
+             */
+
+            if (clientId) {
+
+                deletePendingMessageFromDB(
+                    clientId
+                );
+
+            }
+
 
             return true;
 
         }
 
 
+        // -----------------------------------------------------
+        // NO OPTIMISTIC MESSAGE IN DOM
+        // -----------------------------------------------------
+
+        /*
+         * Bu vəziyyət reload zamanı yarana bilər.
+         *
+         * Məsələn:
+         *
+         * IndexedDB pending mesajı var,
+         * amma API/WebSocket cavabı DOM-a
+         * pending mesaj render olunmazdan əvvəl gəlib.
+         *
+         * Buna görə client_id varsa pending record-u
+         * yenə də silirik.
+         */
+
+        if (
+            !$optimistic ||
+            !$optimistic.length
+        ) {
+
+            if (clientId) {
+
+                deletePendingMessageFromDB(
+                    clientId
+                );
+
+            }
+
+
+            return false;
+
+        }
+
+
+        // -----------------------------------------------------
+        // UPDATE DOM
+        // -----------------------------------------------------
+
         $optimistic
+
             .removeClass(
                 "optimistic-message"
             )
+
             .attr(
                 "data-message-id",
                 serverMessageId
             )
+
             .attr(
                 "data-client-id",
-                serverMessage.client_id ||
+                clientId ||
                 $optimistic.attr(
                     "data-client-id"
                 ) ||
                 ""
             )
+
             .attr(
                 "data-created-at",
                 serverMessage.created_at || ""
             );
 
+
+        // -----------------------------------------------------
+        // CONTENT
+        // -----------------------------------------------------
 
         $optimistic
             .find("p")
@@ -1569,6 +1880,10 @@ $(document).ready(function () {
                 serverMessage.content || ""
             );
 
+
+        // -----------------------------------------------------
+        // TIME
+        // -----------------------------------------------------
 
         $optimistic
             .find("time")
@@ -1621,7 +1936,9 @@ $(document).ready(function () {
         ) {
 
             $optimistic
-                .find(".message-meta")
+                .find(
+                    ".message-meta"
+                )
                 .append(
                     '<i class="fa-solid fa-check message-read"></i>'
                 );
@@ -1644,9 +1961,26 @@ $(document).ready(function () {
         );
 
 
+        // -----------------------------------------------------
+        // SAVE REAL SERVER MESSAGE
+        // -----------------------------------------------------
+
         saveMessageToDB(
             serverMessage
         );
+
+
+        // -----------------------------------------------------
+        // DELETE PENDING MESSAGE
+        // -----------------------------------------------------
+
+        if (clientId) {
+
+            deletePendingMessageFromDB(
+                clientId
+            );
+
+        }
 
 
         return true;
@@ -1803,7 +2137,11 @@ $(document).ready(function () {
     // SEND MESSAGE
     // =========================================================
 
-    function sendMessage() {
+    // =========================================================
+    // SEND MESSAGE
+    // =========================================================
+
+    async function sendMessage() {
 
         const message =
             $messageInput
@@ -1816,6 +2154,10 @@ $(document).ready(function () {
         }
 
 
+        // =====================================================
+        // CLIENT ID
+        // =====================================================
+
         const clientId =
             "client_" +
             Date.now() +
@@ -1825,8 +2167,11 @@ $(document).ready(function () {
                 .substring(2, 9);
 
 
-        $messageInput.val("");
+        // =====================================================
+        // INPUT TƏMİZLƏ
+        // =====================================================
 
+        $messageInput.val("");
 
         $messageInput.css(
             "height",
@@ -1834,9 +2179,9 @@ $(document).ready(function () {
         );
 
 
-        // -----------------------------------------------------
+        // =====================================================
         // OPTIMISTIC MESSAGE
-        // -----------------------------------------------------
+        // =====================================================
 
         const optimisticMessage = {
 
@@ -1845,6 +2190,11 @@ $(document).ready(function () {
 
             client_id:
                 clientId,
+
+            conversationId:
+                String(
+                    conversationId
+                ),
 
             sender:
                 currentUser,
@@ -1857,9 +2207,12 @@ $(document).ready(function () {
 
             optimistic:
                 true
-
         };
 
+
+        // =====================================================
+        // UI-DƏ DƏRHAL GÖSTƏR
+        // =====================================================
 
         renderMessage(
             optimisticMessage
@@ -1869,9 +2222,18 @@ $(document).ready(function () {
         scrollToBottom();
 
 
-        // -----------------------------------------------------
-        // WEBSOCKET OPEN
-        // -----------------------------------------------------
+        // =====================================================
+        // INDEXEDDB-YƏ SAXLA
+        // =====================================================
+
+        await savePendingMessageToDB(
+            optimisticMessage
+        );
+
+
+        // =====================================================
+        // SOCKET AÇIQDIRSA DƏRHAL GÖNDƏR
+        // =====================================================
 
         if (
             socket &&
@@ -1896,46 +2258,21 @@ $(document).ready(function () {
             } catch (error) {
 
                 console.warn(
-                    "Mesaj göndərilmədi:",
+                    "Mesaj WebSocket-ə göndərilmədi:",
                     error
                 );
-
-
-                pendingMessages.push({
-
-                    message:
-                        message,
-
-                    client_id:
-                        clientId
-
-                });
-
 
                 connectWebSocket();
 
             }
 
-
             return;
-
         }
 
 
-        // -----------------------------------------------------
-        // WEBSOCKET NOT READY
-        // -----------------------------------------------------
-
-        pendingMessages.push({
-
-            message:
-                message,
-
-            client_id:
-                clientId
-
-        });
-
+        // =====================================================
+        // SOCKET AÇIQ DEYİLSƏ
+        // =====================================================
 
         connectWebSocket();
 
@@ -2665,58 +3002,149 @@ $(document).ready(function () {
 
         if (
             !socket ||
-            socket.readyState !==
-            WebSocket.OPEN
+            socket.readyState !== WebSocket.OPEN
         ) {
-
             return;
-
         }
 
 
-        if (
-            !pendingMessages.length
-        ) {
+        // =====================================================
+        // INDEXEDDB YOXDURSA GÖZLƏ
+        // =====================================================
 
+        if (!db) {
             return;
-
         }
 
 
-        const messagesToSend =
-            pendingMessages.slice();
+        try {
+
+            const transaction =
+                db.transaction(
+                    PENDING_MESSAGE_STORE,
+                    "readonly"
+                );
 
 
-        pendingMessages = [];
+            const store =
+                transaction.objectStore(
+                    PENDING_MESSAGE_STORE
+                );
 
 
-        messagesToSend.forEach(
-            function (item) {
+            const index =
+                store.index(
+                    "conversationId"
+                );
 
-                try {
 
-                    socket.send(
-                        JSON.stringify({
+            const request =
+                index.getAll(
+                    String(conversationId)
+                );
 
-                            message:
-                                item.message,
 
-                            client_id:
-                                item.client_id
+            request.onsuccess =
+                function () {
 
-                        })
+                    const pendingMessages =
+                        request.result || [];
+
+
+                    // -------------------------------------------------
+                    // TARİXƏ GÖRƏ SIRALA
+                    // -------------------------------------------------
+
+                    pendingMessages.sort(
+                        function (a, b) {
+
+                            return (
+                                getMessageTimestamp(a) -
+                                getMessageTimestamp(b)
+                            );
+
+                        }
                     );
 
-                } catch (error) {
 
-                    pendingMessages.push(
-                        item
+                    // -------------------------------------------------
+                    // HAMISINI SERVERƏ GÖNDƏR
+                    // -------------------------------------------------
+
+                    pendingMessages.forEach(
+                        function (item) {
+
+                            if (
+                                !item ||
+                                !item.client_id ||
+                                !item.content
+                            ) {
+                                return;
+                            }
+
+
+                            // Socket bu anda bağlanıbsa
+                            // qalanları göndərməyə çalışma.
+
+                            if (
+                                !socket ||
+                                socket.readyState !==
+                                WebSocket.OPEN
+                            ) {
+                                return;
+                            }
+
+
+                            try {
+
+                                socket.send(
+                                    JSON.stringify({
+
+                                        message:
+                                            item.content,
+
+                                        client_id:
+                                            String(
+                                                item.client_id
+                                            )
+
+                                    })
+                                );
+
+                            } catch (error) {
+
+                                console.warn(
+                                    "Pending mesaj WebSocket-ə göndərilmədi:",
+                                    error
+                                );
+
+                            }
+
+                        }
                     );
 
-                }
+                };
 
-            }
-        );
+
+            request.onerror =
+                function () {
+
+                    console.warn(
+                        "Pending mesajlar IndexedDB-dən oxunmadı:",
+                        request.error
+                    );
+
+                };
+
+
+        } catch (error) {
+
+            console.error(
+                "Pending mesajlar göndərilərkən xəta:",
+                error
+            );
+
+        }
 
     }
 
