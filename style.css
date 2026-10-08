@@ -1799,6 +1799,10 @@ textarea {
   background: #22c55e;
 }
 
+.offline-dot {
+  background: #ff0000;
+}
+
 .chat-user-info {
   min-width: 0;
   display: flex;
@@ -1818,9 +1822,14 @@ textarea {
 }
 
 .chat-user-info span {
-  color: #22a06b;
   font-size: 12px;
   font-weight: 500;
+}
+.chat-user-info span.online {
+  color: #22c55e;
+}
+.chat-user-info span.offline {
+  color: #ff0000;
 }
 
 .chat-header-actions {

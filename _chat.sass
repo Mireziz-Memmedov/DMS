@@ -116,6 +116,9 @@ textarea
     border-radius: 50%
     background: #22c55e
 
+.offline-dot
+    background: #ff0000
+
 // ==========================================
 // USER INFO
 // ==========================================
@@ -140,9 +143,14 @@ textarea
     font-weight: 700
 
 .chat-user-info span
-    color: #22a06b
     font-size: 12px
     font-weight: 500
+
+    &.online
+        color: #22c55e
+
+    &.offline
+        color: #ff0000
 
 // ==========================================
 // HEADER ACTIONS
