@@ -1390,7 +1390,7 @@ $(document).ready(function () {
             $("#chatUserStatus");
 
         const $onlineDot =
-            $(".chat-user-avatar .online-dot .offline-dot");
+            $("#chatUserOnlineDot");
 
         if (otherUser.is_online === true) {
 
