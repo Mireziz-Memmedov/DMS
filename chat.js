@@ -1389,20 +1389,22 @@ $(document).ready(function () {
         const $status =
             $("#chatUserStatus");
 
+        const $onlineDot =
+            $(".chat-user-avatar .online-dot");
 
-        if (
-            otherUser.is_online === true
-        ) {
+        if (otherUser.is_online === true) {
 
             $status
                 .text("Onlayn")
                 .removeClass("offline")
                 .addClass("online");
 
+            $onlineDot
+                .removeClass("offline-dot")
+                .addClass("online-dot");
+
             return;
-
         }
-
 
         if (otherUser.last_seen) {
 
@@ -1416,17 +1418,21 @@ $(document).ready(function () {
                 .removeClass("online")
                 .addClass("offline");
 
-            return;
+            $onlineDot
+                .removeClass("online-dot")
+                .addClass("offline-dot");
 
+            return;
         }
 
-
         $status
-            .text(
-                "Son giriş məlum deyil"
-            )
+            .text("Son giriş məlum deyil")
             .removeClass("online")
             .addClass("offline");
+
+        $onlineDot
+            .removeClass("online-dot")
+            .addClass("offline-dot");
 
     }
 
@@ -2425,33 +2431,57 @@ $(document).ready(function () {
 
     function formatLastSeen(dateString) {
 
-        const date =
-            new Date(
-                dateString
-            );
-
+        const date = new Date(dateString);
 
         if (
             isNaN(
                 date.getTime()
             )
         ) {
-
             return "—";
+        }
+
+        const now = new Date();
+
+        const sameDay =
+            date.getFullYear() === now.getFullYear() &&
+            date.getMonth() === now.getMonth() &&
+            date.getDate() === now.getDate();
+
+        if (sameDay) {
+
+            return `Bugün, ${String(
+                date.getHours()
+            ).padStart(2, "0")}:${String(
+                date.getMinutes()
+            ).padStart(2, "0")}`;
 
         }
 
+        const day =
+            String(
+                date.getDate()
+            ).padStart(2, "0");
 
-        return date.toLocaleString(
-            "az-AZ",
-            {
-                day: "2-digit",
-                month: "2-digit",
-                hour: "2-digit",
-                minute: "2-digit"
-            }
-        );
+        const month =
+            String(
+                date.getMonth() + 1
+            ).padStart(2, "0");
 
+        const year =
+            date.getFullYear();
+
+        const hour =
+            String(
+                date.getHours()
+            ).padStart(2, "0");
+
+        const minute =
+            String(
+                date.getMinutes()
+            ).padStart(2, "0");
+
+        return `${day}.${month}.${year}, ${hour}:${minute}`;
     }
 
 
