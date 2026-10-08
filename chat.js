@@ -7,10 +7,11 @@ $(document).ready(function () {
     const DB_NAME = "DMS_DB";
 
     /*
-     * Version 6:
+     * Version 8
      *
-     * Köhnə IndexedDB-də qalmış optimistic/non-numeric
-     * mesajların təmizlənməsi üçün version artırılıb.
+     * messages
+     * conversations
+     * pendingMessages
      */
     const DB_VERSION = 8;
 
@@ -39,7 +40,6 @@ $(document).ready(function () {
     // =========================================================
 
     let currentUser = null;
-
 
     try {
 
@@ -70,9 +70,7 @@ $(document).ready(function () {
     // =========================================================
 
     /*
-     * YALNIZ real server message ID-ləri burada saxlanılır.
-     *
-     * client_xxx ID-ləri buraya daxil edilmir.
+     * Yalnız real server message ID-ləri.
      */
     const renderedMessageIds =
         new Set();
@@ -86,10 +84,44 @@ $(document).ready(function () {
 
 
     /*
-     * WebSocket hazır olmayanda göndəriləcək mesajlar.
+     * IndexedDB hazırdır?
      */
+    let db = null;
 
 
+    /*
+     * IndexedDB hazır olmasını gözləyən Promise.
+     *
+     * Əvvəlki kodda yalnız resolve var idi.
+     * DB error olduqda Promise heç vaxt bitmirdi.
+     */
+    let dbReadyResolve;
+    let dbReadyReject;
+
+    const dbReadyPromise =
+        new Promise(function (resolve, reject) {
+
+            dbReadyResolve = resolve;
+            dbReadyReject = reject;
+
+        });
+
+
+    /*
+     * IndexedDB ilkin cache bir dəfə yüklənəcək.
+     */
+    let initialCacheLoaded = false;
+
+
+    /*
+     * Chat initialization yalnız bir dəfə.
+     */
+    let chatInitialized = false;
+
+
+    // =========================================================
+    // WEBSOCKET STATE
+    // =========================================================
 
     let socket = null;
 
@@ -98,6 +130,86 @@ $(document).ready(function () {
     let presenceTimer = null;
 
 
+    /*
+     * WebSocket connection Promise.
+     *
+     * Eyni anda bir neçə connectWebSocket()
+     * çağırılmasının qarşısını alır.
+     */
+    let socketConnectionPromise = null;
+
+
+    /*
+     * Socket bağlanarkən köhnə socket-in
+     * event-lərinin yeni socket-ə qarışmaması üçün.
+     */
+    let socketGeneration = 0;
+
+
+    // =========================================================
+    // OUTGOING MESSAGE QUEUE
+    // =========================================================
+
+    /*
+     * ÇOX VACİB:
+     *
+     * Artıq sendMessage() özü socket.send()
+     * etmir.
+     *
+     * Bütün mesajlar:
+     *
+     * sendMessage()
+     *      ↓
+     * IndexedDB pending
+     *      ↓
+     * processOutgoingQueue()
+     *      ↓
+     * WebSocket
+     *      ↓
+     * ACK
+     *
+     * axını ilə gedir.
+     */
+
+
+    /*
+     * Hazırda ACK gözlənilən client_id.
+     */
+    let waitingForAckClientId = null;
+
+
+    /*
+     * Hazırda ACK gözləyən Promise resolve/reject.
+     */
+    let waitingForAckResolve = null;
+    let waitingForAckReject = null;
+
+
+    /*
+     * Queue işləyir?
+     */
+    let outgoingQueueRunning = false;
+
+
+    /*
+     * Queue yenidən işlədilməlidir?
+     */
+    let outgoingQueueRequested = false;
+
+
+    /*
+     * ACK timeout.
+     *
+     * Server çox gec cavab verərsə queue sonsuza qədər
+     * bloklanmasın.
+     */
+    const ACK_TIMEOUT = 15000;
+
+
+    // =========================================================
+    // CHAT STATE
+    // =========================================================
+
     let isInitialLoading = true;
 
     let loadingOlderMessages = false;
@@ -105,21 +217,6 @@ $(document).ready(function () {
     let oldestMessageId = null;
 
     let hasMoreMessages = true;
-
-
-    // =========================================================
-    // INDEXEDDB
-    // =========================================================
-
-    let db = null;
-
-    let dbReadyResolve;
-
-    const dbReadyPromise = new Promise(
-        function (resolve) {
-            dbReadyResolve = resolve;
-        }
-    );
 
 
     // =========================================================
@@ -140,8 +237,10 @@ $(document).ready(function () {
     dbRequest.onupgradeneeded =
         function (event) {
 
-            db =
+            const database =
                 event.target.result;
+
+            db = database;
 
 
             // -------------------------------------------------
@@ -149,13 +248,13 @@ $(document).ready(function () {
             // -------------------------------------------------
 
             if (
-                !db.objectStoreNames.contains(
+                !database.objectStoreNames.contains(
                     MESSAGE_STORE
                 )
             ) {
 
                 const store =
-                    db.createObjectStore(
+                    database.createObjectStore(
                         MESSAGE_STORE,
                         {
                             keyPath: "id"
@@ -188,12 +287,12 @@ $(document).ready(function () {
             // -------------------------------------------------
 
             if (
-                !db.objectStoreNames.contains(
+                !database.objectStoreNames.contains(
                     CONVERSATION_STORE
                 )
             ) {
 
-                db.createObjectStore(
+                database.createObjectStore(
                     CONVERSATION_STORE,
                     {
                         keyPath: "conversationId"
@@ -202,26 +301,39 @@ $(document).ready(function () {
 
             }
 
+
             // -------------------------------------------------
             // PENDING MESSAGE STORE
             // -------------------------------------------------
 
-            if (!db.objectStoreNames.contains(PENDING_MESSAGE_STORE)) {
-                const store = db.createObjectStore(
-                    PENDING_MESSAGE_STORE,
-                    { keyPath: "client_id" }
-                );
+            if (
+                !database.objectStoreNames.contains(
+                    PENDING_MESSAGE_STORE
+                )
+            ) {
+
+                const store =
+                    database.createObjectStore(
+                        PENDING_MESSAGE_STORE,
+                        {
+                            keyPath: "client_id"
+                        }
+                    );
+
 
                 store.createIndex(
                     "conversationId",
                     "conversationId",
-                    { unique: false }
+                    {
+                        unique: false
+                    }
                 );
+
             }
 
 
             // -------------------------------------------------
-            // CLEAN INVALID OLD MESSAGE RECORDS
+            // CLEAN OLD INVALID MESSAGE RECORDS
             // -------------------------------------------------
 
             const transaction =
@@ -230,7 +342,7 @@ $(document).ready(function () {
 
             if (
                 transaction &&
-                db.objectStoreNames.contains(
+                database.objectStoreNames.contains(
                     MESSAGE_STORE
                 )
             ) {
@@ -269,11 +381,8 @@ $(document).ready(function () {
 
 
                         /*
-                         * Real server message ID-ləri
-                         * numeric olmalıdır.
-                         *
-                         * client_xxx kimi köhnə
-                         * optimistic ID-lər silinir.
+                         * client_xxx kimi köhnə optimistic
+                         * ID-ləri silirik.
                          */
                         if (
                             !Number.isFinite(
@@ -299,24 +408,41 @@ $(document).ready(function () {
     // INDEXEDDB SUCCESS
     // =========================================================
 
-    dbRequest.onsuccess = function (event) {
+    dbRequest.onsuccess =
+        function (event) {
 
-        db = event.target.result;
+            db =
+                event.target.result;
 
 
-        db.onversionchange = function () {
-            db.close();
+            db.onversionchange =
+                function () {
+
+                    db.close();
+
+                };
+
+
+            dbReadyResolve(db);
+
+
+            /*
+             * Bütün cache-ləri bir yerdə yükləyirik.
+             *
+             * Əvvəlki kodda:
+             *
+             * loadConversationFromDB()
+             * loadMessagesFromDB()
+             * loadPendingMessagesFromDB()
+             *
+             * ayrıca işləyirdi.
+             *
+             * Bu isə DOM race yarada bilirdi.
+             */
+            loadInitialCache();
+
         };
 
-
-        // IndexedDB artıq tam hazırdır.
-        dbReadyResolve(db);
-
-
-        loadConversationFromDB();
-        loadMessagesFromDB();
-        loadPendingMessagesFromDB();
-    };
 
     // =========================================================
     // INDEXEDDB ERROR
@@ -325,10 +451,23 @@ $(document).ready(function () {
     dbRequest.onerror =
         function (event) {
 
+            const error =
+                event.target.error;
+
+
             console.warn(
                 "IndexedDB xətası:",
-                event.target.error
+                error
             );
+
+
+            dbReadyReject(error);
+
+
+            /*
+             * DB işləməsə belə chat tam dayanmasın.
+             */
+            initializeChat();
 
         };
 
@@ -405,6 +544,37 @@ $(document).ready(function () {
 
 
     // =========================================================
+    // CLIENT ID
+    // =========================================================
+
+    function generateClientId() {
+
+        if (
+            window.crypto &&
+            typeof window.crypto.randomUUID === "function"
+        ) {
+
+            return (
+                "client_" +
+                window.crypto.randomUUID()
+            );
+
+        }
+
+
+        return (
+            "client_" +
+            Date.now() +
+            "_" +
+            Math.random()
+                .toString(36)
+                .substring(2, 12)
+        );
+
+    }
+
+
+    // =========================================================
     // SAVE MESSAGE TO INDEXEDDB
     // =========================================================
 
@@ -420,18 +590,14 @@ $(document).ready(function () {
 
 
         if (
-            !isRealServerMessage(
-                message
-            )
+            !isRealServerMessage(message)
         ) {
             return;
         }
 
 
         const messageId =
-            getMessageId(
-                message
-            );
+            getMessageId(message);
 
 
         if (messageId === null) {
@@ -439,64 +605,89 @@ $(document).ready(function () {
         }
 
 
-        const transaction =
-            db.transaction(
-                MESSAGE_STORE,
-                "readwrite"
-            );
+        try {
 
-
-        const store =
-            transaction.objectStore(
-                MESSAGE_STORE
-            );
-
-
-        store.put({
-            id: messageId,
-
-            conversationId:
-                String(conversationId),
-
-            sender:
-                message.sender,
-
-            content:
-                message.content,
-
-            client_id:
-                message.client_id || null,
-
-            created_at:
-                message.created_at
-        });
-
-
-        transaction.onerror =
-            function (event) {
-
-                console.warn(
-                    "Mesaj IndexedDB-yə yazılmadı:",
-                    event.target.error
+            const transaction =
+                db.transaction(
+                    MESSAGE_STORE,
+                    "readwrite"
                 );
 
-            };
+
+            const store =
+                transaction.objectStore(
+                    MESSAGE_STORE
+                );
+
+
+            store.put({
+
+                id:
+                    messageId,
+
+                conversationId:
+                    String(conversationId),
+
+                sender:
+                    message.sender || null,
+
+                content:
+                    message.content || "",
+
+                client_id:
+                    message.client_id
+                        ? String(message.client_id)
+                        : null,
+
+                is_read:
+                    message.is_read ?? false,
+
+                created_at:
+                    message.created_at
+
+            });
+
+
+            transaction.onerror =
+                function (event) {
+
+                    console.warn(
+                        "Mesaj IndexedDB-yə yazılmadı:",
+                        event.target.error
+                    );
+
+                };
+
+        } catch (error) {
+
+            console.warn(
+                "saveMessageToDB xətası:",
+                error
+            );
+
+        }
 
     }
 
+
     // =========================================================
-    // PENDING MESSAGE → INDEXEDDB
+    // SAVE PENDING MESSAGE
     // =========================================================
 
     function savePendingMessageToDB(message) {
 
-        if (!message || !message.client_id) {
+        if (
+            !message ||
+            !message.client_id
+        ) {
+
             return Promise.resolve(false);
+
         }
 
 
-        return dbReadyPromise.then(
-            function () {
+        return dbReadyPromise
+            .then(function () {
 
                 if (!db) {
                     return false;
@@ -528,13 +719,14 @@ $(document).ready(function () {
 
                     optimistic:
                         true
+
                 };
 
 
-                try {
+                return new Promise(
+                    function (resolve) {
 
-                    return new Promise(
-                        function (resolve) {
+                        try {
 
                             const transaction =
                                 db.transaction(
@@ -571,21 +763,112 @@ $(document).ready(function () {
                                         request.error
                                     );
 
+
                                     resolve(false);
 
                                 };
 
+
+                        } catch (error) {
+
+                            console.error(
+                                "Pending mesaj IndexedDB xətası:",
+                                error
+                            );
+
+
+                            resolve(false);
+
                         }
-                    );
+
+                    }
+                );
+
+            })
+            .catch(function (error) {
+
+                console.warn(
+                    "Pending DB hazır deyil:",
+                    error
+                );
+
+
+                return false;
+
+            });
+
+    }
+
+
+    // =========================================================
+    // DELETE PENDING MESSAGE
+    // =========================================================
+
+    function deletePendingMessageFromDB(clientId) {
+
+        if (
+            !db ||
+            !clientId
+        ) {
+            return Promise.resolve(false);
+        }
+
+
+        return new Promise(
+            function (resolve) {
+
+                try {
+
+                    const transaction =
+                        db.transaction(
+                            PENDING_MESSAGE_STORE,
+                            "readwrite"
+                        );
+
+
+                    const store =
+                        transaction.objectStore(
+                            PENDING_MESSAGE_STORE
+                        );
+
+
+                    const request =
+                        store.delete(
+                            String(clientId)
+                        );
+
+
+                    request.onsuccess =
+                        function () {
+
+                            resolve(true);
+
+                        };
+
+
+                    request.onerror =
+                        function () {
+
+                            console.warn(
+                                "Pending mesaj silinmədi:",
+                                request.error
+                            );
+
+
+                            resolve(false);
+
+                        };
 
                 } catch (error) {
 
-                    console.error(
-                        "Pending mesaj IndexedDB xətası:",
+                    console.warn(
+                        "Pending mesaj silinərkən xəta:",
                         error
                     );
 
-                    return false;
+
+                    resolve(false);
+
                 }
 
             }
@@ -593,42 +876,122 @@ $(document).ready(function () {
 
     }
 
-    function loadPendingMessagesFromDB() {
 
-        if (!db) {
+    // =========================================================
+    // SAVE CONVERSATION TO INDEXEDDB
+    // =========================================================
+
+    function saveConversationToDB(otherUser) {
+
+        if (
+            !db ||
+            !otherUser
+        ) {
             return;
         }
+
+
+        try {
+
+            const transaction =
+                db.transaction(
+                    CONVERSATION_STORE,
+                    "readwrite"
+                );
+
+
+            const store =
+                transaction.objectStore(
+                    CONVERSATION_STORE
+                );
+
+
+            store.put({
+
+                conversationId:
+                    String(conversationId),
+
+                user:
+                    otherUser
+
+            });
+
+
+            transaction.onerror =
+                function (event) {
+
+                    console.warn(
+                        "İstifadəçi IndexedDB-yə yazılmadı:",
+                        event.target.error
+                    );
+
+                };
+
+        } catch (error) {
+
+            console.warn(
+                "saveConversationToDB xətası:",
+                error
+            );
+
+        }
+
+    }
+
+
+    // =========================================================
+    // LOAD INITIAL CACHE
+    // =========================================================
+
+    function loadInitialCache() {
+
+        if (
+            !db ||
+            initialCacheLoaded
+        ) {
+            return;
+        }
+
+
+        initialCacheLoaded = true;
+
 
         try {
 
             const transaction =
                 db.transaction(
                     [
-                        PENDING_MESSAGE_STORE,
-                        MESSAGE_STORE
+                        CONVERSATION_STORE,
+                        MESSAGE_STORE,
+                        PENDING_MESSAGE_STORE
                     ],
                     "readonly"
                 );
 
-            const pendingStore =
+
+            const conversationStore =
                 transaction.objectStore(
-                    PENDING_MESSAGE_STORE
+                    CONVERSATION_STORE
                 );
+
 
             const messageStore =
                 transaction.objectStore(
                     MESSAGE_STORE
                 );
 
-            const pendingIndex =
-                pendingStore.index(
-                    "conversationId"
+
+            const pendingStore =
+                transaction.objectStore(
+                    PENDING_MESSAGE_STORE
                 );
 
-            const pendingRequest =
-                pendingIndex.getAll(
+
+            const conversationRequest =
+                conversationStore.get(
                     String(conversationId)
                 );
+
 
             const messagesRequest =
                 messageStore
@@ -638,28 +1001,116 @@ $(document).ready(function () {
                     );
 
 
+            const pendingRequest =
+                pendingStore
+                    .index("conversationId")
+                    .getAll(
+                        String(conversationId)
+                    );
+
+
             transaction.oncomplete =
                 function () {
+
+                    const cachedConversation =
+                        conversationRequest.result;
+
+
+                    const cachedMessages =
+                        messagesRequest.result || [];
+
 
                     const pendingMessages =
                         pendingRequest.result || [];
 
-                    const serverMessages =
-                        messagesRequest.result || [];
+
+                    /*
+                     * ------------------------------------------------
+                     * CONVERSATION
+                     * ------------------------------------------------
+                     */
+
+                    if (
+                        cachedConversation &&
+                        cachedConversation.user
+                    ) {
+
+                        renderChatUser(
+                            cachedConversation.user
+                        );
+
+                    }
 
 
                     /*
-                     * Artıq server tərəfindən təsdiqlənmiş
-                     * client_id-ləri yadda saxlayırıq.
+                     * ------------------------------------------------
+                     * REAL SERVER MESSAGES
+                     * ------------------------------------------------
+                     */
+
+                    const validMessages =
+                        cachedMessages
+                            .filter(function (message) {
+
+                                return (
+                                    isRealServerMessage(
+                                        message
+                                    ) &&
+                                    !message.optimistic
+                                );
+
+                            })
+                            .sort(function (a, b) {
+
+                                /*
+                                 * Server ID authoritative.
+                                 */
+                                return (
+                                    Number(a.id) -
+                                    Number(b.id)
+                                );
+
+                            })
+                            .slice(-20);
+
+
+                    validMessages.forEach(
+                        function (message) {
+
+                            insertServerMessageInOrder(
+                                message,
+                                false
+                            );
+
+                        }
+                    );
+
+
+                    if (
+                        validMessages.length
+                    ) {
+
+                        oldestMessageId =
+                            validMessages[0].id;
+
+                    }
+
+
+                    /*
+                     * ------------------------------------------------
+                     * CONFIRMED CLIENT IDS
+                     * ------------------------------------------------
                      */
 
                     const confirmedClientIds =
                         new Set();
 
-                    serverMessages.forEach(
+
+                    cachedMessages.forEach(
                         function (message) {
 
                             if (
+                                message &&
                                 message.client_id
                             ) {
 
@@ -675,28 +1126,45 @@ $(document).ready(function () {
                     );
 
 
-                    pendingMessages.sort(
-                        function (a, b) {
+                    /*
+                     * ------------------------------------------------
+                     * PENDING MESSAGES
+                     * ------------------------------------------------
+                     */
+
+                    pendingMessages
+                        .filter(function (message) {
 
                             return (
-                                getMessageTimestamp(a) -
-                                getMessageTimestamp(b)
+                                message &&
+                                message.client_id
                             );
 
-                        }
-                    );
+                        })
+                        .sort(function (a, b) {
 
+                            const timeDifference =
+                                getMessageTimestamp(a) -
+                                getMessageTimestamp(b);
 
-                    pendingMessages.forEach(
-                        function (message) {
 
                             if (
-                                !message ||
-                                !message.client_id
+                                timeDifference !== 0
                             ) {
-                                return;
+
+                                return timeDifference;
+
                             }
 
+
+                            return String(
+                                a.client_id
+                            ).localeCompare(
+                                String(b.client_id)
+                            );
+
+                        })
+                        .forEach(function (message) {
 
                             const clientId =
                                 String(
@@ -705,11 +1173,9 @@ $(document).ready(function () {
 
 
                             /*
-                             * Server artıq bu mesajı
-                             * təsdiqləyibsə, optimistic
-                             * olaraq göstərmə.
+                             * Server artıq təsdiqləyibsə,
+                             * pending lazım deyil.
                              */
-
                             if (
                                 confirmedClientIds.has(
                                     clientId
@@ -726,374 +1192,117 @@ $(document).ready(function () {
 
 
                             /*
-                             * DOM-da artıq varsa,
-                             * ikinci dəfə yaratma.
+                             * DOM-da artıq varsa yaratma.
                              */
+                            if (
+                                findOptimisticByClientId(
+                                    clientId
+                                )
+                            ) {
 
-                            const exists =
-                                $messagesArea
-                                    .find(".message-row")
-                                    .filter(
-                                        function () {
-
-                                            return (
-                                                String(
-                                                    $(this).attr(
-                                                        "data-client-id"
-                                                    )
-                                                ) ===
-                                                clientId
-                                            );
-
-                                        }
-                                    )
-                                    .length > 0;
-
-
-                            if (exists) {
                                 return;
+
                             }
 
 
-                            renderMessage({
+                            renderOptimisticMessage(
+                                message
+                            );
 
-                                ...message,
+                        });
 
-                                id:
-                                    clientId,
 
-                                client_id:
-                                    clientId,
+                    /*
+                     * Cache hazırdır.
+                     */
+                    isInitialLoading = false;
 
-                                optimistic:
-                                    true
 
-                            });
+                    /*
+                     * Chat aşağıda açılır.
+                     */
+                    requestAnimationFrame(
+                        function () {
+
+                            if (
+                                validMessages.length ||
+                                pendingMessages.length
+                            ) {
+
+                                scrollToBottom();
+
+                            }
 
                         }
                     );
 
 
-                    if (
-                        pendingMessages.length
-                    ) {
-
-                        scrollToBottom();
-
-                    }
+                    /*
+                     * İndi API + WebSocket başlayır.
+                     */
+                    initializeChat();
 
                 };
 
 
             transaction.onerror =
-                function () {
+                function (event) {
 
                     console.warn(
-                        "Pending mesajlar IndexedDB-dən oxunmadı:",
-                        transaction.error
+                        "IndexedDB initial cache xətası:",
+                        event.target.error
                     );
+
+
+                    isInitialLoading = false;
+
+
+                    initializeChat();
 
                 };
 
         } catch (error) {
 
-            console.error(
-                "Pending mesajlar yüklənərkən xəta:",
+            console.warn(
+                "loadInitialCache xətası:",
                 error
             );
 
+
+            isInitialLoading = false;
+
+
+            initializeChat();
+
         }
 
     }
 
-    function deletePendingMessageFromDB(clientId) {
-
-        if (!db || !clientId) {
-            return;
-        }
-
-        try {
-
-            const transaction = db.transaction(
-                PENDING_MESSAGE_STORE,
-                "readwrite"
-            );
-
-            const store = transaction.objectStore(
-                PENDING_MESSAGE_STORE
-            );
-
-            store.delete(String(clientId));
-
-        } catch (error) {
-
-            console.error(
-                "Pending mesaj IndexedDB-dən silinmədi:",
-                error
-            );
-        }
-    }
-
 
     // =========================================================
-    // SAVE CONVERSATION TO INDEXEDDB
+    // INITIALIZE CHAT
     // =========================================================
 
-    function saveConversationToDB(
-        otherUser
-    ) {
+    function initializeChat() {
 
-        if (
-            !db ||
-            !otherUser
-        ) {
+        if (chatInitialized) {
             return;
         }
 
 
-        const transaction =
-            db.transaction(
-                CONVERSATION_STORE,
-                "readwrite"
-            );
+        chatInitialized = true;
 
 
-        const store =
-            transaction.objectStore(
-                CONVERSATION_STORE
-            );
+        /*
+         * Cache artıq göstərilib.
+         *
+         * Bundan sonra API və WebSocket işləyir.
+         */
+        loadConversation();
 
+        loadMessages();
 
-        store.put({
-
-            conversationId:
-                String(conversationId),
-
-            user:
-                otherUser
-
-        });
-
-
-        transaction.onerror =
-            function (event) {
-
-                console.warn(
-                    "İstifadəçi IndexedDB-yə yazılmadı:",
-                    event.target.error
-                );
-
-            };
-
-    }
-
-
-    // =========================================================
-    // LOAD CONVERSATION FROM INDEXEDDB
-    // =========================================================
-
-    function loadConversationFromDB() {
-
-        if (
-            !db ||
-            !conversationId
-        ) {
-            return;
-        }
-
-
-        const transaction =
-            db.transaction(
-                CONVERSATION_STORE,
-                "readonly"
-            );
-
-
-        const store =
-            transaction.objectStore(
-                CONVERSATION_STORE
-            );
-
-
-        const request =
-            store.get(
-                String(conversationId)
-            );
-
-
-        request.onsuccess =
-            function () {
-
-                const cachedConversation =
-                    request.result;
-
-
-                if (
-                    !cachedConversation ||
-                    !cachedConversation.user
-                ) {
-                    return;
-                }
-
-
-                /*
-                 * İstifadəçi adı API-ni gözləmədən
-                 * dərhal göstərilir.
-                 */
-                renderChatUser(
-                    cachedConversation.user
-                );
-
-            };
-
-
-        request.onerror =
-            function (event) {
-
-                console.warn(
-                    "Cache user oxunmadı:",
-                    event.target.error
-                );
-
-            };
-
-    }
-
-
-    // =========================================================
-    // LOAD MESSAGES FROM INDEXEDDB
-    // =========================================================
-
-    function loadMessagesFromDB() {
-
-        if (!db) {
-            return;
-        }
-
-
-        const transaction =
-            db.transaction(
-                MESSAGE_STORE,
-                "readonly"
-            );
-
-
-        const store =
-            transaction.objectStore(
-                MESSAGE_STORE
-            );
-
-
-        const index =
-            store.index(
-                "conversationId"
-            );
-
-
-        const request =
-            index.getAll(
-                String(conversationId)
-            );
-
-
-        request.onsuccess =
-            function () {
-
-                const messages =
-                    request.result || [];
-
-
-                const validMessages =
-                    messages
-                        .filter(
-                            function (message) {
-
-                                return (
-                                    isRealServerMessage(
-                                        message
-                                    ) &&
-                                    !message.optimistic
-                                );
-
-                            }
-                        )
-                        .sort(
-                            function (a, b) {
-
-                                return (
-                                    getMessageTimestamp(a) -
-                                    getMessageTimestamp(b)
-                                );
-
-                            }
-                        );
-
-
-                /*
-                 * Son 20 mesajı cache-dən göstər.
-                 */
-                const lastMessages =
-                    validMessages.slice(-20);
-
-
-                lastMessages.forEach(
-                    function (message) {
-
-                        insertServerMessageInOrder(
-                            message,
-                            false
-                        );
-
-                    }
-                );
-
-
-                if (
-                    lastMessages.length
-                ) {
-
-                    oldestMessageId =
-                        lastMessages[0].id;
-
-                }
-
-
-                /*
-                 * Cache ekrana gəlibsə,
-                 * artıq initial loading bitib.
-                 */
-                isInitialLoading = false;
-
-
-                requestAnimationFrame(
-                    function () {
-
-                        if (
-                            lastMessages.length
-                        ) {
-
-                            scrollToBottom();
-
-                        }
-
-                    }
-                );
-
-            };
-
-
-        request.onerror =
-            function (event) {
-
-                console.warn(
-                    "IndexedDB mesajları oxunmadı:",
-                    event.target.error
-                );
-
-
-                isInitialLoading = false;
-
-            };
+        connectWebSocket();
 
     }
 
@@ -1102,18 +1311,12 @@ $(document).ready(function () {
     // RENDER CHAT USER
     // =========================================================
 
-    function renderChatUser(
-        otherUser
-    ) {
+    function renderChatUser(otherUser) {
 
         if (!otherUser) {
             return;
         }
 
-
-        // -----------------------------------------------------
-        // NAME
-        // -----------------------------------------------------
 
         let fullName =
             (
@@ -1229,7 +1432,7 @@ $(document).ready(function () {
 
 
     // =========================================================
-    // LOAD CONVERSATION FROM API
+    // LOAD CONVERSATION API
     // =========================================================
 
     function loadConversation() {
@@ -1313,10 +1516,6 @@ $(document).ready(function () {
                     }
 
 
-                    /*
-                     * API məlumatı cache-dəkinin
-                     * üzərinə yazır və UI-ni yeniləyir.
-                     */
                     renderChatUser(
                         otherUser
                     );
@@ -1345,7 +1544,7 @@ $(document).ready(function () {
 
 
     // =========================================================
-    // LOAD MESSAGES FROM API
+    // LOAD MESSAGES API
     // =========================================================
 
     function loadMessages() {
@@ -1387,8 +1586,8 @@ $(document).ready(function () {
                                 function (a, b) {
 
                                     return (
-                                        getMessageTimestamp(a) -
-                                        getMessageTimestamp(b)
+                                        Number(a.id) -
+                                        Number(b.id)
                                     );
 
                                 }
@@ -1396,17 +1595,18 @@ $(document).ready(function () {
                             .slice(-20);
 
 
+                    let changed = false;
+
+
                     serverMessages.forEach(
                         function (message) {
 
-                            saveMessageToDB(
-                                message
-                            );
-
-
                             /*
-                             * Optimistic varsa əvvəl
-                             * onunla reconcile edilir.
+                             * Əvvəl reconciliation.
+                             *
+                             * Əgər optimistic DOM varsa,
+                             * onu yerindən tərpətmədən
+                             * real mesaja çeviririk.
                              */
                             if (
                                 reconcileOptimisticMessage(
@@ -1414,19 +1614,26 @@ $(document).ready(function () {
                                 )
                             ) {
 
+                                changed = true;
+
                                 return;
 
                             }
 
 
                             /*
-                             * Artıq ekrandadırsa duplicate
-                             * yaratmırıq.
+                             * Normal server message.
                              */
-                            insertServerMessageInOrder(
-                                message,
-                                false
-                            );
+                            if (
+                                insertServerMessageInOrder(
+                                    message,
+                                    true
+                                )
+                            ) {
+
+                                changed = true;
+
+                            }
 
                         }
                     );
@@ -1450,16 +1657,19 @@ $(document).ready(function () {
 
 
                     /*
-                     * API ilk açılışda gəlibsə
-                     * chat aşağıda qalsın.
+                     * İlk API load zamanı aşağıda qal.
                      */
-                    requestAnimationFrame(
-                        function () {
+                    if (!changed) {
 
-                            scrollToBottom();
+                        requestAnimationFrame(
+                            function () {
 
-                        }
-                    );
+                                scrollToBottom();
+
+                            }
+                        );
+
+                    }
 
                 },
 
@@ -1486,9 +1696,7 @@ $(document).ready(function () {
     // CREATE MESSAGE ELEMENT
     // =========================================================
 
-    function createMessageElement(
-        message
-    ) {
+    function createMessageElement(message) {
 
         const senderId =
             message.sender &&
@@ -1530,7 +1738,8 @@ $(document).ready(function () {
 
 
         const $message =
-            $(`
+            $(
+                `
                 <div
                     class="message-row ${messageClass}${optimisticClass}"
                     data-message-id="${escapeHtmlAttribute(messageId)}"
@@ -1556,7 +1765,8 @@ $(document).ready(function () {
                     </div>
 
                 </div>
-            `);
+                `
+            );
 
 
         $message
@@ -1581,6 +1791,60 @@ $(document).ready(function () {
 
 
     // =========================================================
+    // FIND OPTIMISTIC BY CLIENT ID
+    // =========================================================
+
+    function findOptimisticByClientId(clientId) {
+
+        if (!clientId) {
+            return null;
+        }
+
+
+        const target =
+            String(clientId);
+
+
+        const $messages =
+            $messagesArea.find(
+                ".optimistic-message"
+            );
+
+
+        for (
+            let i = 0;
+            i < $messages.length;
+            i++
+        ) {
+
+            const $item =
+                $($messages[i]);
+
+
+            const itemClientId =
+                $item.attr(
+                    "data-client-id"
+                );
+
+
+            if (
+                String(itemClientId || "") ===
+                target
+            ) {
+
+                return $item;
+
+            }
+
+        }
+
+
+        return null;
+
+    }
+
+
+    // =========================================================
     // INSERT SERVER MESSAGE IN ORDER
     // =========================================================
 
@@ -1590,18 +1854,14 @@ $(document).ready(function () {
     ) {
 
         if (
-            !isRealServerMessage(
-                message
-            )
+            !isRealServerMessage(message)
         ) {
             return false;
         }
 
 
         const messageId =
-            String(
-                message.id
-            );
+            String(message.id);
 
 
         /*
@@ -1618,10 +1878,8 @@ $(document).ready(function () {
         }
 
 
-        const messageTimestamp =
-            getMessageTimestamp(
-                message
-            );
+        const messageNumericId =
+            Number(message.id);
 
 
         const $message =
@@ -1639,6 +1897,14 @@ $(document).ready(function () {
             );
 
 
+        /*
+         * Server ID əsas authoritative order-dir.
+         *
+         * Optimistic row-lara toxunmuruq.
+         *
+         * Əgər qarşıdakı row real server mesajıdır
+         * və onun ID-si böyükdürsə, bundan əvvəl salırıq.
+         */
         $rows.each(
             function () {
 
@@ -1651,24 +1917,42 @@ $(document).ready(function () {
                     $(this);
 
 
+                const rowMessageId =
+                    $row.attr(
+                        "data-message-id"
+                    );
+
+
                 /*
-                 * Optimistic mesajın vaxtı varsa,
-                 * onunla da müqayisə edirik.
+                 * Optimistic mesajdırsa:
+                 *
+                 * onun yerini dəyişmirik.
+                 *
+                 * Sadəcə davam edirik.
                  */
-                const rowTimestamp =
-                    new Date(
-                        $row.attr(
-                            "data-created-at"
-                        ) || 0
-                    ).getTime();
+                if (
+                    $row.hasClass(
+                        "optimistic-message"
+                    )
+                ) {
+
+                    return;
+
+                }
+
+
+                const rowNumericId =
+                    Number(
+                        rowMessageId
+                    );
 
 
                 if (
                     Number.isFinite(
-                        rowTimestamp
+                        rowNumericId
                     ) &&
-                    rowTimestamp >
-                    messageTimestamp
+                    rowNumericId >
+                    messageNumericId
                 ) {
 
                     $message.insertBefore(
@@ -1686,6 +1970,12 @@ $(document).ready(function () {
 
         if (!inserted) {
 
+            /*
+             * Yeni real server mesajı ən sona.
+             *
+             * Optimistic mesajlar varsa belə,
+             * onların DOM yeri dəyişdirilmir.
+             */
             $messagesArea.append(
                 $message
             );
@@ -1719,144 +2009,6 @@ $(document).ready(function () {
 
 
     // =========================================================
-    // FIND OPTIMISTIC MESSAGE
-    // =========================================================
-
-    function findOptimisticMessage(
-        serverMessage
-    ) {
-
-        if (!serverMessage) {
-            return null;
-        }
-
-
-        // -----------------------------------------------------
-        // 1. EXACT CLIENT ID
-        // -----------------------------------------------------
-
-        const serverClientId =
-            serverMessage.client_id;
-
-
-        if (serverClientId) {
-
-            const $messages =
-                $messagesArea.find(
-                    ".optimistic-message"
-                );
-
-
-            for (
-                let i = 0;
-                i < $messages.length;
-                i++
-            ) {
-
-                const $item =
-                    $($messages[i]);
-
-
-                if (
-                    String(
-                        $item.attr(
-                            "data-client-id"
-                        )
-                    ) ===
-                    String(
-                        serverClientId
-                    )
-                ) {
-
-                    return $item;
-
-                }
-
-            }
-
-        }
-
-
-        // -----------------------------------------------------
-        // 2. ONLY OUR OWN MESSAGES
-        // -----------------------------------------------------
-
-        const serverSenderId =
-            serverMessage.sender &&
-            serverMessage.sender.id;
-
-
-        const currentUserId =
-            currentUser &&
-            currentUser.id;
-
-
-        if (
-            String(serverSenderId) !==
-            String(currentUserId)
-        ) {
-
-            return null;
-
-        }
-
-
-        // -----------------------------------------------------
-        // 3. FIFO CONTENT FALLBACK
-        // -----------------------------------------------------
-
-        const optimisticMessages =
-            $messagesArea
-                .find(
-                    ".optimistic-message"
-                )
-                .toArray();
-
-
-        const serverContent =
-            String(
-                serverMessage.content || ""
-            ).trim();
-
-
-        for (
-            let i = 0;
-            i < optimisticMessages.length;
-            i++
-        ) {
-
-            const $item =
-                $(
-                    optimisticMessages[i]
-                );
-
-
-            const content =
-                String(
-                    $item
-                        .find("p")
-                        .text()
-                ).trim();
-
-
-            if (
-                content ===
-                serverContent
-            ) {
-
-                return $item;
-
-            }
-
-        }
-
-
-        return null;
-
-    }
-
-
-    // =========================================================
     // RECONCILE OPTIMISTIC MESSAGE
     // =========================================================
 
@@ -1873,29 +2025,42 @@ $(document).ready(function () {
         }
 
 
-        // -----------------------------------------------------
-        // CLIENT ID
-        // -----------------------------------------------------
-
+        /*
+         * ÇOX VACİB:
+         *
+         * Artıq content fallback YOXDUR.
+         *
+         * Yalnız client_id ilə match edirik.
+         *
+         * Beləliklə:
+         *
+         * 1
+         * 2
+         * 3
+         * 1
+         * 4
+         * 5
+         *
+         * kimi eyni content-lər qarışmır.
+         */
         const clientId =
             serverMessage.client_id
-                ? String(serverMessage.client_id)
+                ? String(
+                    serverMessage.client_id
+                )
                 : null;
 
 
-        // -----------------------------------------------------
-        // FIND OPTIMISTIC MESSAGE
-        // -----------------------------------------------------
+        /*
+         * Backend client_id qaytarmırsa,
+         * optimistic mesajı təxmin etməyə çalışma.
+         */
+        if (!clientId) {
 
-        const $optimistic =
-            findOptimisticMessage(
-                serverMessage
-            );
+            return false;
 
+        }
 
-        // -----------------------------------------------------
-        // SERVER MESSAGE ID
-        // -----------------------------------------------------
 
         const serverMessageId =
             String(
@@ -1903,9 +2068,17 @@ $(document).ready(function () {
             );
 
 
-        // -----------------------------------------------------
-        // IF ALREADY RENDERED
-        // -----------------------------------------------------
+        const $optimistic =
+            findOptimisticByClientId(
+                clientId
+            );
+
+
+        /*
+         * -----------------------------------------------------
+         * SERVER MESSAGE ALREADY RENDERED
+         * -----------------------------------------------------
+         */
 
         if (
             renderedMessageIds.has(
@@ -1913,25 +2086,19 @@ $(document).ready(function () {
             )
         ) {
 
-            if ($optimistic && $optimistic.length) {
+            if (
+                $optimistic &&
+                $optimistic.length
+            ) {
 
                 $optimistic.remove();
 
             }
 
 
-            /*
-             * Server mesajı artıq ekrandadır.
-             * Pending record artıq lazım deyil.
-             */
-
-            if (clientId) {
-
-                deletePendingMessageFromDB(
-                    clientId
-                );
-
-            }
+            deletePendingMessageFromDB(
+                clientId
+            );
 
 
             return true;
@@ -1939,21 +2106,14 @@ $(document).ready(function () {
         }
 
 
-        // -----------------------------------------------------
-        // NO OPTIMISTIC MESSAGE IN DOM
-        // -----------------------------------------------------
-
         /*
-         * Bu vəziyyət reload zamanı yarana bilər.
+         * -----------------------------------------------------
+         * OPTIMISTIC DOM YOXDUR
+         * -----------------------------------------------------
          *
-         * Məsələn:
+         * Reload / API race zamanı mümkündür.
          *
-         * IndexedDB pending mesajı var,
-         * amma API/WebSocket cavabı DOM-a
-         * pending mesaj render olunmazdan əvvəl gəlib.
-         *
-         * Buna görə client_id varsa pending record-u
-         * yenə də silirik.
+         * Bu halda real mesajı normal render edirik.
          */
 
         if (
@@ -1961,59 +2121,52 @@ $(document).ready(function () {
             !$optimistic.length
         ) {
 
-            if (clientId) {
+            deletePendingMessageFromDB(
+                clientId
+            );
 
-                deletePendingMessageFromDB(
-                    clientId
-                );
-
-            }
-
-            /*
-             * Optimistic DOM artıq yoxdur.
-             * Server mesajını normal şəkildə göstər.
-             */
 
             return insertServerMessageInOrder(
                 serverMessage,
                 true
             );
+
         }
 
 
-        // -----------------------------------------------------
-        // UPDATE DOM
-        // -----------------------------------------------------
+        /*
+         * -----------------------------------------------------
+         * OPTIMISTIC → REAL
+         * -----------------------------------------------------
+         *
+         * ƏSAS QAYDA:
+         *
+         * DOM elementinin yeri DƏYİŞMİR.
+         *
+         * Sadəcə həmin elementin məlumatları dəyişir.
+         */
 
         $optimistic
-
             .removeClass(
                 "optimistic-message"
             )
-
             .attr(
                 "data-message-id",
                 serverMessageId
             )
-
             .attr(
                 "data-client-id",
-                clientId ||
-                $optimistic.attr(
-                    "data-client-id"
-                ) ||
-                ""
+                clientId
             )
-
             .attr(
                 "data-created-at",
                 serverMessage.created_at || ""
             );
 
 
-        // -----------------------------------------------------
-        // CONTENT
-        // -----------------------------------------------------
+        /*
+         * Content.
+         */
 
         $optimistic
             .find("p")
@@ -2022,9 +2175,9 @@ $(document).ready(function () {
             );
 
 
-        // -----------------------------------------------------
-        // TIME
-        // -----------------------------------------------------
+        /*
+         * Time.
+         */
 
         $optimistic
             .find("time")
@@ -2035,9 +2188,9 @@ $(document).ready(function () {
             );
 
 
-        // -----------------------------------------------------
-        // SENT / RECEIVED CLASS
-        // -----------------------------------------------------
+        /*
+         * Sent / received.
+         */
 
         const senderId =
             serverMessage.sender &&
@@ -2065,9 +2218,9 @@ $(document).ready(function () {
             );
 
 
-        // -----------------------------------------------------
-        // CHECK ICON
-        // -----------------------------------------------------
+        /*
+         * Check icon.
+         */
 
         if (
             isSent &&
@@ -2087,9 +2240,9 @@ $(document).ready(function () {
         }
 
 
-        // -----------------------------------------------------
-        // STATE
-        // -----------------------------------------------------
+        /*
+         * Memory state.
+         */
 
         renderedMessageIds.add(
             serverMessageId
@@ -2102,26 +2255,22 @@ $(document).ready(function () {
         );
 
 
-        // -----------------------------------------------------
-        // SAVE REAL SERVER MESSAGE
-        // -----------------------------------------------------
+        /*
+         * Real mesajı DB-yə yaz.
+         */
 
         saveMessageToDB(
             serverMessage
         );
 
 
-        // -----------------------------------------------------
-        // DELETE PENDING MESSAGE
-        // -----------------------------------------------------
+        /*
+         * Pending artıq lazım deyil.
+         */
 
-        if (clientId) {
-
-            deletePendingMessageFromDB(
-                clientId
-            );
-
-        }
+        deletePendingMessageFromDB(
+            clientId
+        );
 
 
         return true;
@@ -2130,12 +2279,56 @@ $(document).ready(function () {
 
 
     // =========================================================
+    // RENDER OPTIMISTIC MESSAGE
+    // =========================================================
+
+    function renderOptimisticMessage(message) {
+
+        if (
+            !message ||
+            !message.client_id
+        ) {
+            return;
+        }
+
+
+        /*
+         * Duplicate optimistic message yaratma.
+         */
+        if (
+            findOptimisticByClientId(
+                message.client_id
+            )
+        ) {
+
+            return;
+
+        }
+
+
+        const $message =
+            createMessageElement({
+                ...message,
+                optimistic: true
+            });
+
+
+        /*
+         * Optimistic mesaj həmişə
+         * öz local send sırasına görə sona əlavə olunur.
+         */
+        $messagesArea.append(
+            $message
+        );
+
+    }
+
+
+    // =========================================================
     // RENDER MESSAGE
     // =========================================================
 
-    function renderMessage(
-        message
-    ) {
+    function renderMessage(message) {
 
         if (!message) {
             return;
@@ -2144,16 +2337,9 @@ $(document).ready(function () {
 
         if (message.optimistic) {
 
-            const $message =
-                createMessageElement(
-                    message
-                );
-
-
-            $messagesArea.append(
-                $message
+            renderOptimisticMessage(
+                message
             );
-
 
             return;
 
@@ -2161,7 +2347,8 @@ $(document).ready(function () {
 
 
         insertServerMessageInOrder(
-            message
+            message,
+            true
         );
 
     }
@@ -2171,9 +2358,7 @@ $(document).ready(function () {
     // ESCAPE ATTRIBUTE
     // =========================================================
 
-    function escapeHtmlAttribute(
-        value
-    ) {
+    function escapeHtmlAttribute(value) {
 
         return String(value)
 
@@ -2204,9 +2389,7 @@ $(document).ready(function () {
     // MESSAGE TIME
     // =========================================================
 
-    function formatMessageTime(
-        dateString
-    ) {
+    function formatMessageTime(dateString) {
 
         const date =
             new Date(
@@ -2240,9 +2423,7 @@ $(document).ready(function () {
     // LAST SEEN
     // =========================================================
 
-    function formatLastSeen(
-        dateString
-    ) {
+    function formatLastSeen(dateString) {
 
         const date =
             new Date(
@@ -2278,10 +2459,6 @@ $(document).ready(function () {
     // SEND MESSAGE
     // =========================================================
 
-    // =========================================================
-    // SEND MESSAGE
-    // =========================================================
-
     async function sendMessage() {
 
         const message =
@@ -2295,24 +2472,18 @@ $(document).ready(function () {
         }
 
 
-        // =====================================================
-        // CLIENT ID
-        // =====================================================
-
+        /*
+         * Hər mesaj üçün unikal client_id.
+         */
         const clientId =
-            "client_" +
-            Date.now() +
-            "_" +
-            Math.random()
-                .toString(36)
-                .substring(2, 9);
+            generateClientId();
 
 
-        // =====================================================
-        // INPUT TƏMİZLƏ
-        // =====================================================
-
+        /*
+         * Input təmizlənir.
+         */
         $messageInput.val("");
+
 
         $messageInput.css(
             "height",
@@ -2320,10 +2491,9 @@ $(document).ready(function () {
         );
 
 
-        // =====================================================
-        // OPTIMISTIC MESSAGE
-        // =====================================================
-
+        /*
+         * Optimistic message.
+         */
         const optimisticMessage = {
 
             id:
@@ -2348,33 +2518,74 @@ $(document).ready(function () {
 
             optimistic:
                 true
+
         };
 
 
-        // =====================================================
-        // UI-DƏ DƏRHAL GÖSTƏR
-        // =====================================================
-
-        renderMessage(
+        /*
+         * 1. Əvvəl UI.
+         */
+        renderOptimisticMessage(
             optimisticMessage
         );
 
 
+        /*
+         * 2. Scroll.
+         */
         scrollToBottom();
 
 
-        // =====================================================
-        // INDEXEDDB-YƏ SAXLA
-        // =====================================================
+        /*
+         * 3. ƏVVƏL DB.
+         *
+         * Reload indi olsa belə mesaj itməyəcək.
+         */
+        const saved =
+            await savePendingMessageToDB(
+                optimisticMessage
+            );
 
-        await savePendingMessageToDB(
-            optimisticMessage
-        );
+
+        if (!saved) {
+
+            console.warn(
+                "Pending mesaj DB-yə yazılmadı:",
+                clientId
+            );
+
+        }
 
 
-        // =====================================================
-        // SOCKET AÇIQDIRSA DƏRHAL GÖNDƏR
-        // =====================================================
+        /*
+         * 4. Socket hazırdırsa queue-ni işə sal.
+         *
+         * Artıq BURADA socket.send() YOXDUR.
+         */
+        requestOutgoingQueue();
+
+    }
+
+
+    // =========================================================
+    // REQUEST OUTGOING QUEUE
+    // =========================================================
+
+    function requestOutgoingQueue() {
+
+        outgoingQueueRequested = true;
+
+
+        processOutgoingQueue();
+
+    }
+
+
+    // =========================================================
+    // WAIT FOR SOCKET OPEN
+    // =========================================================
+
+    function waitForSocketOpen() {
 
         if (
             socket &&
@@ -2382,40 +2593,549 @@ $(document).ready(function () {
             WebSocket.OPEN
         ) {
 
-            try {
+            return Promise.resolve(true);
 
-                socket.send(
-                    JSON.stringify({
+        }
 
-                        message:
-                            message,
 
-                        client_id:
-                            clientId
+        connectWebSocket();
 
-                    })
-                );
 
-            } catch (error) {
+        return new Promise(
+            function (resolve) {
 
-                console.warn(
-                    "Mesaj WebSocket-ə göndərilmədi:",
-                    error
-                );
+                const check =
+                    function () {
 
-                connectWebSocket();
+                        if (
+                            socket &&
+                            socket.readyState ===
+                            WebSocket.OPEN
+                        ) {
+
+                            resolve(true);
+
+                            return;
+
+                        }
+
+
+                        if (
+                            !socket ||
+                            socket.readyState ===
+                            WebSocket.CLOSED
+                        ) {
+
+                            /*
+                             * Reconnect artıq schedule olunacaq.
+                             *
+                             * Burada sonsuz interval saxlamırıq.
+                             */
+                            resolve(false);
+
+                            return;
+
+                        }
+
+
+                        setTimeout(
+                            check,
+                            100
+                        );
+
+                    };
+
+
+                check();
 
             }
+        );
 
+    }
+
+
+    // =========================================================
+    // GET PENDING MESSAGES
+    // =========================================================
+
+    function getPendingMessages() {
+
+        return dbReadyPromise
+            .then(function () {
+
+                if (!db) {
+                    return [];
+                }
+
+
+                return new Promise(
+                    function (resolve) {
+
+                        try {
+
+                            const transaction =
+                                db.transaction(
+                                    PENDING_MESSAGE_STORE,
+                                    "readonly"
+                                );
+
+
+                            const store =
+                                transaction.objectStore(
+                                    PENDING_MESSAGE_STORE
+                                );
+
+
+                            const index =
+                                store.index(
+                                    "conversationId"
+                                );
+
+
+                            const request =
+                                index.getAll(
+                                    String(
+                                        conversationId
+                                    )
+                                );
+
+
+                            request.onsuccess =
+                                function () {
+
+                                    const messages =
+                                        request.result || [];
+
+
+                                    messages.sort(
+                                        function (a, b) {
+
+                                            const timeDifference =
+                                                getMessageTimestamp(a) -
+                                                getMessageTimestamp(b);
+
+
+                                            if (
+                                                timeDifference !== 0
+                                            ) {
+
+                                                return timeDifference;
+
+                                            }
+
+
+                                            return String(
+                                                a.client_id
+                                            ).localeCompare(
+                                                String(
+                                                    b.client_id
+                                                )
+                                            );
+
+                                        }
+                                    );
+
+
+                                    resolve(
+                                        messages
+                                    );
+
+                                };
+
+
+                            request.onerror =
+                                function () {
+
+                                    console.warn(
+                                        "Pending mesajlar oxunmadı:",
+                                        request.error
+                                    );
+
+
+                                    resolve([]);
+
+                                };
+
+                        } catch (error) {
+
+                            console.warn(
+                                "getPendingMessages xətası:",
+                                error
+                            );
+
+
+                            resolve([]);
+
+                        }
+
+                    }
+                );
+
+            })
+            .catch(function () {
+
+                return [];
+
+            });
+
+    }
+
+
+    // =========================================================
+    // SEND ONE PENDING MESSAGE
+    // =========================================================
+
+    function sendPendingMessage(item) {
+
+        return new Promise(
+            async function (resolve, reject) {
+
+                if (
+                    !item ||
+                    !item.client_id ||
+                    !item.content
+                ) {
+
+                    resolve(false);
+
+                    return;
+
+                }
+
+
+                const clientId =
+                    String(
+                        item.client_id
+                    );
+
+
+                /*
+                 * Socket hazır deyilsə.
+                 */
+                const socketReady =
+                    await waitForSocketOpen();
+
+
+                if (!socketReady) {
+
+                    reject(
+                        new Error(
+                            "WebSocket hazır deyil."
+                        )
+                    );
+
+                    return;
+
+                }
+
+
+                /*
+                 * Socket artıq başqa ACK gözləyirsə,
+                 * bu funksiya çağırılmamalıdır.
+                 */
+                if (
+                    waitingForAckClientId
+                ) {
+
+                    reject(
+                        new Error(
+                            "Başqa mesaj ACK gözləyir."
+                        )
+                    );
+
+                    return;
+
+                }
+
+
+                waitingForAckClientId =
+                    clientId;
+
+
+                let timeoutId = null;
+
+
+                waitingForAckResolve =
+                    function () {
+
+                        if (timeoutId) {
+
+                            clearTimeout(
+                                timeoutId
+                            );
+
+                        }
+
+
+                        timeoutId = null;
+
+
+                        waitingForAckClientId =
+                            null;
+
+                        waitingForAckResolve =
+                            null;
+
+                        waitingForAckReject =
+                            null;
+
+
+                        resolve(true);
+
+                    };
+
+
+                waitingForAckReject =
+                    function (error) {
+
+                        if (timeoutId) {
+
+                            clearTimeout(
+                                timeoutId
+                            );
+
+                        }
+
+
+                        timeoutId = null;
+
+
+                        waitingForAckClientId =
+                            null;
+
+                        waitingForAckResolve =
+                            null;
+
+                        waitingForAckReject =
+                            null;
+
+
+                        reject(error);
+
+                    };
+
+
+                /*
+                 * ACK timeout.
+                 */
+                timeoutId =
+                    setTimeout(
+                        function () {
+
+                            if (
+                                waitingForAckReject
+                            ) {
+
+                                waitingForAckReject(
+                                    new Error(
+                                        "ACK timeout"
+                                    )
+                                );
+
+                            }
+
+                        },
+                        ACK_TIMEOUT
+                    );
+
+
+                try {
+
+                    socket.send(
+                        JSON.stringify({
+
+                            message:
+                                String(
+                                    item.content
+                                ),
+
+                            client_id:
+                                clientId
+
+                        })
+                    );
+
+                } catch (error) {
+
+                    if (
+                        waitingForAckReject
+                    ) {
+
+                        waitingForAckReject(
+                            error
+                        );
+
+                    }
+
+                }
+
+            }
+        );
+
+    }
+
+
+    // =========================================================
+    // PROCESS OUTGOING QUEUE
+    // =========================================================
+
+    async function processOutgoingQueue() {
+
+        if (outgoingQueueRunning) {
             return;
         }
 
 
-        // =====================================================
-        // SOCKET AÇIQ DEYİLSƏ
-        // =====================================================
+        if (!outgoingQueueRequested) {
+            return;
+        }
 
-        connectWebSocket();
+
+        outgoingQueueRunning = true;
+
+        outgoingQueueRequested = false;
+
+
+        try {
+
+            while (true) {
+
+                /*
+                 * Pending mesajları DB-dən yenidən oxuyuruq.
+                 *
+                 * Bu çox vacibdir:
+                 *
+                 * 1
+                 * 2
+                 * 3
+                 * 4
+                 * 5
+                 *
+                 * hamısı artıq DB-dədirsə,
+                 * sıra qorunur.
+                 */
+
+                const pendingMessages =
+                    await getPendingMessages();
+
+
+                if (
+                    !pendingMessages.length
+                ) {
+
+                    break;
+
+                }
+
+
+                const item =
+                    pendingMessages[0];
+
+
+                if (
+                    !item ||
+                    !item.client_id
+                ) {
+
+                    if (item && item.client_id) {
+
+                        await deletePendingMessageFromDB(
+                            item.client_id
+                        );
+
+                    }
+
+                    continue;
+
+                }
+
+
+                /*
+                 * Socket yoxdursa reconnect.
+                 */
+                if (
+                    !socket ||
+                    socket.readyState !==
+                    WebSocket.OPEN
+                ) {
+
+                    connectWebSocket();
+
+                    /*
+                     * Bu anda queue dayansın.
+                     *
+                     * Socket onopen yenidən
+                     * requestOutgoingQueue() çağıracaq.
+                     */
+                    break;
+
+                }
+
+
+                try {
+
+                    /*
+                     * YALNIZ BİR mesaj göndərilir.
+                     *
+                     * ACK gələnə qədər ikinci mesaj
+                     * göndərilmir.
+                     */
+                    await sendPendingMessage(
+                        item
+                    );
+
+
+                    /*
+                     * ACK gəlibsə pending record artıq
+                     * reconcile zamanı silinib.
+                     *
+                     * Amma təhlükəsizlik üçün:
+                     */
+                    await deletePendingMessageFromDB(
+                        item.client_id
+                    );
+
+
+                } catch (error) {
+
+                    console.warn(
+                        "Pending mesaj göndərilməsi dayandı:",
+                        error
+                    );
+
+
+                    /*
+                     * Socket bağlanıbsa:
+                     * reconnect olacaq.
+                     *
+                     * client_id DB-də qalır.
+                     *
+                     * Buna görə mesaj itməyəcək.
+                     */
+                    break;
+
+                }
+
+            }
+
+        } finally {
+
+            outgoingQueueRunning = false;
+
+
+            /*
+             * Queue işləyərkən yeni mesaj gəlibsə,
+             * yenidən yoxla.
+             */
+            if (
+                outgoingQueueRequested
+            ) {
+
+                processOutgoingQueue();
+
+            }
+
+        }
 
     }
 
@@ -2592,9 +3312,7 @@ $(document).ready(function () {
                 function (messages) {
 
                     if (
-                        !Array.isArray(
-                            messages
-                        ) ||
+                        !Array.isArray(messages) ||
                         !messages.length
                     ) {
 
@@ -2616,8 +3334,8 @@ $(document).ready(function () {
                                 function (a, b) {
 
                                     return (
-                                        getMessageTimestamp(a) -
-                                        getMessageTimestamp(b)
+                                        Number(a.id) -
+                                        Number(b.id)
                                     );
 
                                 }
@@ -2648,6 +3366,9 @@ $(document).ready(function () {
                     }
 
 
+                    /*
+                     * Ən köhnədən ən yeniyə prepend.
+                     */
                     for (
                         let i =
                             validMessages.length - 1;
@@ -2762,9 +3483,7 @@ $(document).ready(function () {
             if (
                 isInitialLoading
             ) {
-
                 return;
-
             }
 
 
@@ -2787,18 +3506,33 @@ $(document).ready(function () {
 
     function connectWebSocket() {
 
+        /*
+         * Artıq açıq socket.
+         */
         if (
             socket &&
-            (
-                socket.readyState ===
-                WebSocket.OPEN ||
-
-                socket.readyState ===
-                WebSocket.CONNECTING
-            )
+            socket.readyState ===
+            WebSocket.OPEN
         ) {
 
-            return;
+            requestOutgoingQueue();
+
+            return Promise.resolve(true);
+
+        }
+
+
+        /*
+         * Hazırda CONNECTING.
+         */
+        if (
+            socket &&
+            socket.readyState ===
+            WebSocket.CONNECTING
+        ) {
+
+            return socketConnectionPromise ||
+                Promise.resolve(false);
 
         }
 
@@ -2808,7 +3542,6 @@ $(document).ready(function () {
             clearTimeout(
                 reconnectTimer
             );
-
 
             reconnectTimer = null;
 
@@ -2823,7 +3556,7 @@ $(document).ready(function () {
 
         if (!accessToken) {
 
-            return;
+            return Promise.resolve(false);
 
         }
 
@@ -2850,6 +3583,10 @@ $(document).ready(function () {
             );
 
 
+        const generation =
+            ++socketGeneration;
+
+
         const newSocket =
             new WebSocket(
                 wsUrl
@@ -2860,214 +3597,327 @@ $(document).ready(function () {
             newSocket;
 
 
-        // -----------------------------------------------------
-        // OPEN
-        // -----------------------------------------------------
+        /*
+         * Connection Promise.
+         */
+        socketConnectionPromise =
+            new Promise(
+                function (resolve) {
 
-        newSocket.onopen =
-            function () {
-
-                if (
-                    socket !== newSocket
-                ) {
-
-                    return;
-
-                }
+                    let settled = false;
 
 
-                sendPresence();
+                    function finish(value) {
+
+                        if (settled) {
+                            return;
+                        }
 
 
-                if (presenceTimer) {
+                        settled = true;
 
-                    clearInterval(
-                        presenceTimer
-                    );
+                        resolve(value);
 
-                }
+                    }
 
 
-                presenceTimer =
-                    setInterval(
+                    // -------------------------------------------------
+                    // OPEN
+                    // -------------------------------------------------
+
+                    newSocket.onopen =
                         function () {
 
                             if (
-                                socket &&
-                                socket.readyState ===
-                                WebSocket.OPEN
+                                socket !==
+                                newSocket ||
+                                generation !==
+                                socketGeneration
                             ) {
 
-                                sendPresence();
+                                return;
 
                             }
 
-                        },
-                        30000
-                    );
+
+                            finish(true);
 
 
-                flushPendingMessages();
+                            socketConnectionPromise =
+                                null;
 
-            };
+
+                            sendPresence();
 
 
-        // -----------------------------------------------------
-        // MESSAGE
-        // -----------------------------------------------------
+                            if (presenceTimer) {
 
-        newSocket.onmessage =
-            function (event) {
+                                clearInterval(
+                                    presenceTimer
+                                );
 
-                if (
-                    socket !== newSocket
-                ) {
+                            }
 
-                    return;
+
+                            presenceTimer =
+                                setInterval(
+                                    function () {
+
+                                        if (
+                                            socket &&
+                                            socket.readyState ===
+                                            WebSocket.OPEN
+                                        ) {
+
+                                            sendPresence();
+
+                                        }
+
+                                    },
+                                    30000
+                                );
+
+
+                            /*
+                             * Socket açılan kimi
+                             * bütün pending-ləri
+                             * nəzarətli queue ilə göndər.
+                             */
+                            requestOutgoingQueue();
+
+                        };
+
+
+                    // -------------------------------------------------
+                    // MESSAGE
+                    // -------------------------------------------------
+
+                    newSocket.onmessage =
+                        function (event) {
+
+                            if (
+                                socket !==
+                                newSocket
+                            ) {
+
+                                return;
+
+                            }
+
+
+                            let data;
+
+
+                            try {
+
+                                data =
+                                    JSON.parse(
+                                        event.data
+                                    );
+
+                            } catch (error) {
+
+                                console.warn(
+                                    "WebSocket JSON xətası:",
+                                    error
+                                );
+
+                                return;
+
+                            }
+
+
+                            if (
+                                !data ||
+                                !data.message
+                            ) {
+
+                                return;
+
+                            }
+
+
+                            const message =
+                                data.message;
+
+
+                            if (
+                                !isRealServerMessage(
+                                    message
+                                )
+                            ) {
+
+                                return;
+
+                            }
+
+
+                            /*
+                             * ACK / optimistic reconciliation.
+                             */
+                            const reconciled =
+                                reconcileOptimisticMessage(
+                                    message
+                                );
+
+
+                            /*
+                             * Əgər bu bizim hazırda
+                             * göndərdiyimiz mesajdırsa,
+                             * ACK gözləyən Promise-i tamamla.
+                             */
+                            const receivedClientId =
+                                message.client_id
+                                    ? String(
+                                        message.client_id
+                                    )
+                                    : null;
+
+
+                            if (
+                                receivedClientId &&
+                                waitingForAckClientId &&
+                                receivedClientId ===
+                                waitingForAckClientId
+                            ) {
+
+                                if (
+                                    waitingForAckResolve
+                                ) {
+
+                                    waitingForAckResolve();
+
+                                }
+
+                            }
+
+
+                            if (reconciled) {
+
+                                return;
+
+                            }
+
+
+                            /*
+                             * Başqa istifadəçinin mesajı.
+                             */
+                            const shouldScroll =
+                                isNearBottom();
+
+
+                            const inserted =
+                                insertServerMessageInOrder(
+                                    message,
+                                    true
+                                );
+
+
+                            if (
+                                inserted &&
+                                shouldScroll
+                            ) {
+
+                                scrollToBottom();
+
+                            }
+
+                        };
+
+
+                    // -------------------------------------------------
+                    // CLOSE
+                    // -------------------------------------------------
+
+                    newSocket.onclose =
+                        function () {
+
+                            finish(false);
+
+
+                            if (
+                                socket !==
+                                newSocket
+                            ) {
+
+                                return;
+
+                            }
+
+
+                            socket = null;
+
+
+                            socketConnectionPromise =
+                                null;
+
+
+                            /*
+                             * Hazırda ACK gözləyirdiksə,
+                             * onu reject edirik.
+                             *
+                             * Pending DB-də qalır.
+                             */
+                            if (
+                                waitingForAckReject
+                            ) {
+
+                                waitingForAckReject(
+                                    new Error(
+                                        "WebSocket bağlandı."
+                                    )
+                                );
+
+                            }
+
+
+                            if (presenceTimer) {
+
+                                clearInterval(
+                                    presenceTimer
+                                );
+
+
+                                presenceTimer =
+                                    null;
+
+                            }
+
+
+                            scheduleReconnect();
+
+                        };
+
+
+                    // -------------------------------------------------
+                    // ERROR
+                    // -------------------------------------------------
+
+                    newSocket.onerror =
+                        function (error) {
+
+                            if (
+                                socket !==
+                                newSocket
+                            ) {
+
+                                return;
+
+                            }
+
+
+                            console.warn(
+                                "WebSocket xətası:",
+                                error
+                            );
+
+                        };
 
                 }
+            );
 
 
-                let data;
-
-
-                try {
-
-                    data =
-                        JSON.parse(
-                            event.data
-                        );
-
-                } catch (error) {
-
-                    console.warn(
-                        "WebSocket JSON xətası:",
-                        error
-                    );
-
-                    return;
-
-                }
-
-
-                if (
-                    !data ||
-                    !data.message
-                ) {
-
-                    return;
-
-                }
-
-
-                const message =
-                    data.message;
-
-
-                if (
-                    !isRealServerMessage(
-                        message
-                    )
-                ) {
-
-                    return;
-
-                }
-
-
-                const reconciled =
-                    reconcileOptimisticMessage(
-                        message
-                    );
-
-
-                if (reconciled) {
-
-                    return;
-
-                }
-
-
-                const shouldScroll =
-                    isNearBottom();
-
-
-                const inserted =
-                    insertServerMessageInOrder(
-                        message
-                    );
-
-
-                if (
-                    inserted &&
-                    shouldScroll
-                ) {
-
-                    scrollToBottom();
-
-                }
-
-            };
-
-
-        // -----------------------------------------------------
-        // CLOSE
-        // -----------------------------------------------------
-
-        newSocket.onclose =
-            function () {
-
-                if (
-                    socket !== newSocket
-                ) {
-
-                    return;
-
-                }
-
-
-                socket = null;
-
-
-                if (presenceTimer) {
-
-                    clearInterval(
-                        presenceTimer
-                    );
-
-
-                    presenceTimer = null;
-
-                }
-
-
-                scheduleReconnect();
-
-            };
-
-
-        // -----------------------------------------------------
-        // ERROR
-        // -----------------------------------------------------
-
-        newSocket.onerror =
-            function (error) {
-
-                if (
-                    socket !== newSocket
-                ) {
-
-                    return;
-
-                }
-
-
-                console.warn(
-                    "WebSocket xətası:",
-                    error
-                );
-
-            };
+        return socketConnectionPromise;
 
     }
 
@@ -3087,7 +3937,9 @@ $(document).ready(function () {
             setTimeout(
                 function () {
 
-                    reconnectTimer = null;
+                    reconnectTimer =
+                        null;
+
 
                     connectWebSocket();
 
@@ -3139,153 +3991,16 @@ $(document).ready(function () {
     // FLUSH PENDING
     // =========================================================
 
+    /*
+     * Köhnə flushPendingMessages() saxlanılır,
+     * amma artıq ayrıca socket.send() edən sistem deyil.
+     *
+     * Bu funksiyanı başqa hissələr də çağırsa,
+     * təhlükəsiz şəkildə queue-ni işə salır.
+     */
     function flushPendingMessages() {
 
-        if (
-            !socket ||
-            socket.readyState !== WebSocket.OPEN
-        ) {
-            return;
-        }
-
-
-        // =====================================================
-        // INDEXEDDB YOXDURSA GÖZLƏ
-        // =====================================================
-
-        if (!db) {
-            return;
-        }
-
-
-        try {
-
-            const transaction =
-                db.transaction(
-                    PENDING_MESSAGE_STORE,
-                    "readonly"
-                );
-
-
-            const store =
-                transaction.objectStore(
-                    PENDING_MESSAGE_STORE
-                );
-
-
-            const index =
-                store.index(
-                    "conversationId"
-                );
-
-
-            const request =
-                index.getAll(
-                    String(conversationId)
-                );
-
-
-            request.onsuccess =
-                function () {
-
-                    const pendingMessages =
-                        request.result || [];
-
-
-                    // -------------------------------------------------
-                    // TARİXƏ GÖRƏ SIRALA
-                    // -------------------------------------------------
-
-                    pendingMessages.sort(
-                        function (a, b) {
-
-                            return (
-                                getMessageTimestamp(a) -
-                                getMessageTimestamp(b)
-                            );
-
-                        }
-                    );
-
-
-                    // -------------------------------------------------
-                    // HAMISINI SERVERƏ GÖNDƏR
-                    // -------------------------------------------------
-
-                    pendingMessages.forEach(
-                        function (item) {
-
-                            if (
-                                !item ||
-                                !item.client_id ||
-                                !item.content
-                            ) {
-                                return;
-                            }
-
-
-                            // Socket bu anda bağlanıbsa
-                            // qalanları göndərməyə çalışma.
-
-                            if (
-                                !socket ||
-                                socket.readyState !==
-                                WebSocket.OPEN
-                            ) {
-                                return;
-                            }
-
-
-                            try {
-
-                                socket.send(
-                                    JSON.stringify({
-
-                                        message:
-                                            item.content,
-
-                                        client_id:
-                                            String(
-                                                item.client_id
-                                            )
-
-                                    })
-                                );
-
-                            } catch (error) {
-
-                                console.warn(
-                                    "Pending mesaj WebSocket-ə göndərilmədi:",
-                                    error
-                                );
-
-                            }
-
-                        }
-                    );
-
-                };
-
-
-            request.onerror =
-                function () {
-
-                    console.warn(
-                        "Pending mesajlar IndexedDB-dən oxunmadı:",
-                        request.error
-                    );
-
-                };
-
-
-        } catch (error) {
-
-            console.error(
-                "Pending mesajlar göndərilərkən xəta:",
-                error
-            );
-
-        }
+        requestOutgoingQueue();
 
     }
 
@@ -3312,13 +4027,9 @@ $(document).ready(function () {
                 function (messages) {
 
                     if (
-                        !Array.isArray(
-                            messages
-                        )
+                        !Array.isArray(messages)
                     ) {
-
                         return;
-
                     }
 
 
@@ -3326,8 +4037,7 @@ $(document).ready(function () {
                         isNearBottom();
 
 
-                    let added =
-                        false;
+                    let added = false;
 
 
                     messages
@@ -3338,8 +4048,8 @@ $(document).ready(function () {
                             function (a, b) {
 
                                 return (
-                                    getMessageTimestamp(a) -
-                                    getMessageTimestamp(b)
+                                    Number(a.id) -
+                                    Number(b.id)
                                 );
 
                             }
@@ -3347,11 +4057,10 @@ $(document).ready(function () {
                         .forEach(
                             function (message) {
 
-                                saveMessageToDB(
-                                    message
-                                );
-
-
+                                /*
+                                 * Əvvəl optimistic
+                                 * reconciliation.
+                                 */
                                 if (
                                     reconcileOptimisticMessage(
                                         message
@@ -3368,7 +4077,7 @@ $(document).ready(function () {
                                 const inserted =
                                     insertServerMessageInOrder(
                                         message,
-                                        false
+                                        true
                                     );
 
 
@@ -3391,6 +4100,12 @@ $(document).ready(function () {
 
                     }
 
+
+                    /*
+                     * Pending queue də yoxlanılır.
+                     */
+                    requestOutgoingQueue();
+
                 },
 
 
@@ -3410,7 +4125,7 @@ $(document).ready(function () {
 
 
     // =========================================================
-    // VISIBILITY CHANGE & CLEANUP (10/10 FIX)
+    // VISIBILITY CHANGE
     // =========================================================
 
     document.addEventListener(
@@ -3427,6 +4142,9 @@ $(document).ready(function () {
             }
 
 
+            /*
+             * Socket yoxdursa reconnect.
+             */
             if (
                 !socket ||
                 socket.readyState !==
@@ -3442,32 +4160,90 @@ $(document).ready(function () {
             }
 
 
+            /*
+             * User məlumatını yenilə.
+             */
             loadConversation();
 
+
+            /*
+             * Serverdə bu müddətdə gələn
+             * mesajları yoxla.
+             */
             checkNewMessages();
+
+
+            /*
+             * Pending queue.
+             */
+            requestOutgoingQueue();
 
         }
     );
 
 
-    /*
-     * Memory leak-lərin qarşısını almaq üçün
-     * səhifədən çıxıldıqda timer və socket təmizlənir.
-     */
+    // =========================================================
+    // BEFORE UNLOAD
+    // =========================================================
+
     window.addEventListener(
         "beforeunload",
         function () {
 
             if (presenceTimer) {
-                clearInterval(presenceTimer);
+
+                clearInterval(
+                    presenceTimer
+                );
+
+                presenceTimer = null;
+
             }
+
 
             if (reconnectTimer) {
-                clearTimeout(reconnectTimer);
+
+                clearTimeout(
+                    reconnectTimer
+                );
+
+                reconnectTimer = null;
+
             }
 
+
+            /*
+             * ACK gözləyən Promise-i
+             * səhifə bağlanarkən reject et.
+             *
+             * Pending DB-də qaldığı üçün
+             * reload sonrası yenidən göndərilə bilər.
+             */
+            if (
+                waitingForAckReject
+            ) {
+
+                waitingForAckReject(
+                    new Error(
+                        "Səhifə bağlanır."
+                    )
+                );
+
+            }
+
+
             if (socket) {
-                socket.close();
+
+                try {
+
+                    socket.close();
+
+                } catch (error) {
+
+                    // ignore
+
+                }
+
             }
 
         }
@@ -3744,7 +4520,7 @@ $(document).ready(function () {
 
 
     // =========================================================
-    // MUTE, CLEAR & BLOCK
+    // MUTE
     // =========================================================
 
     $("#muteChatButton").on(
@@ -3754,6 +4530,7 @@ $(document).ready(function () {
             $("#chatMoreMenu")
                 .removeClass("active");
 
+
             console.log(
                 "Bildirişlər susduruldu."
             );
@@ -3762,12 +4539,17 @@ $(document).ready(function () {
     );
 
 
+    // =========================================================
+    // CLEAR
+    // =========================================================
+
     $("#clearChatButton").on(
         "click",
         function () {
 
             $("#chatMoreMenu")
                 .removeClass("active");
+
 
             console.log(
                 "Söhbəti təmizlə düyməsi."
@@ -3777,12 +4559,17 @@ $(document).ready(function () {
     );
 
 
+    // =========================================================
+    // BLOCK
+    // =========================================================
+
     $("#blockUserButton").on(
         "click",
         function () {
 
             $("#chatMoreMenu")
                 .removeClass("active");
+
 
             console.log(
                 "Əməkdaş bloklama düyməsi."
@@ -3909,8 +4696,20 @@ $(document).ready(function () {
     // INITIALIZATION
     // =========================================================
 
-    loadConversation();
-    loadMessages();
-    connectWebSocket();
+    /*
+     * BURADA artıq:
+     *
+     * loadConversation();
+     * loadMessages();
+     * connectWebSocket();
+     *
+     * birbaşa çağırılmır.
+     *
+     * Əvvəl IndexedDB cache hazırlanır,
+     * sonra initializeChat() çağırılır.
+     *
+     * DB error olsa belə dbRequest.onerror
+     * initializeChat() çağırır.
+     */
 
-});  
+});
