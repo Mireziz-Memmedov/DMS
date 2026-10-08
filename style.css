@@ -476,7 +476,7 @@ body.dark-mode .language-menu button:active {
     padding: 0 13px;
   }
   .input-wrapper input {
-    font-size: 13px;
+    font-size: 16px;
   }
   .form-options {
     margin: 2px 0 15px;
@@ -652,7 +652,7 @@ a {
   outline: 0;
   background: transparent;
   color: #172033;
-  font-size: 13px;
+  font-size: 16px;
   cursor: text;
 }
 .search-box input::-moz-placeholder {
