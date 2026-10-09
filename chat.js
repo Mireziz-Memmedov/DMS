@@ -64,6 +64,9 @@ $(document).ready(function () {
     const $messagesArea =
         $("#messagesArea");
 
+    const $newMessageButton =
+        $("#newMessageButton");
+
 
     // =========================================================
     // MESSAGE STATE
@@ -3235,25 +3238,46 @@ $(document).ready(function () {
 
     function scrollToBottom() {
 
-        const element =
-            $messagesArea[0];
-
+        const element = $messagesArea[0];
 
         if (!element) {
             return;
         }
 
+        requestAnimationFrame(function () {
 
-        requestAnimationFrame(
-            function () {
+            element.scrollTop = element.scrollHeight;
 
-                element.scrollTop =
-                    element.scrollHeight;
+            hideNewMessageButton();
 
-            }
-        );
+        });
+    }
+
+
+    // =========================================================
+    // NEW MESSAGE NOTIFICATION
+    // =========================================================
+
+    function showNewMessageButton() {
+
+        $newMessageButton.addClass("active");
 
     }
+
+
+    function hideNewMessageButton() {
+
+        $newMessageButton.removeClass("active");
+
+    }
+
+
+    // Bildirişə basanda son mesaja keç.
+    $newMessageButton.on("click", function () {
+
+        scrollToBottom();
+
+    });
 
 
     // =========================================================
@@ -3514,6 +3538,10 @@ $(document).ready(function () {
                 isInitialLoading
             ) {
                 return;
+            }
+
+            if (isNearBottom()) {
+                hideNewMessageButton();
             }
 
 
@@ -3782,73 +3810,88 @@ $(document).ready(function () {
                             }
 
 
-                            /*
-                             * ACK / optimistic reconciliation.
-                             */
+                            // =============================================
+                            // YENİ MESAJ VƏ BİLDİRİŞ
+                            // =============================================
+
+                            // Mesaj əvvəldən göstərilmişdimi?
+                            const messageId = String(message.id);
+
+                            const wasAlreadyRendered =
+                                renderedMessageIds.has(messageId);
+
+                            // Göndərən və hazırkı istifadəçi
+                            const senderId =
+                                message.sender &&
+                                message.sender.id;
+
+                            const currentUserId =
+                                currentUser &&
+                                currentUser.id;
+
+                            // Mesaj qarşı tərəfdəndir?
+                            const isIncoming =
+                                senderId !== null &&
+                                senderId !== undefined &&
+                                currentUserId !== null &&
+                                currentUserId !== undefined &&
+                                String(senderId) !== String(currentUserId);
+
+                            // Yeni mesaj əlavə olunmazdan əvvəl scroll vəziyyətini yoxla.
+                            const shouldScroll = isNearBottom();
+
+                            // Optimistic mesajı server mesajı ilə uzlaşdır.
                             const reconciled =
-                                reconcileOptimisticMessage(
-                                    message
-                                );
+                                reconcileOptimisticMessage(message);
 
-
-                            /*
-                             * Əgər bu bizim hazırda
-                             * göndərdiyimiz mesajdırsa,
-                             * ACK gözləyən Promise-i tamamla.
-                             */
+                            // Bu, hazırda göndərdiyimiz mesajın ACK-ıdır?
                             const receivedClientId =
                                 message.client_id
-                                    ? String(
-                                        message.client_id
-                                    )
+                                    ? String(message.client_id)
                                     : null;
-
 
                             if (
                                 receivedClientId &&
                                 waitingForAckClientId &&
-                                receivedClientId ===
-                                waitingForAckClientId
+                                receivedClientId === waitingForAckClientId
                             ) {
-
-                                if (
-                                    waitingForAckResolve
-                                ) {
-
+                                if (waitingForAckResolve) {
                                     waitingForAckResolve();
+                                }
+                            }
+
+                            // Mesaj uzlaşdırılıbsa, yeni gələn mesajın bildirişini
+                            // yenə də nəzərə alırıq.
+                            if (reconciled) {
+
+                                if (isIncoming && !wasAlreadyRendered) {
+
+                                    if (shouldScroll) {
+                                        scrollToBottom();
+                                    } else {
+                                        showNewMessageButton();
+                                    }
 
                                 }
 
-                            }
-
-
-                            if (reconciled) {
-
                                 return;
-
                             }
 
-
-                            /*
-                             * Başqa istifadəçinin mesajı.
-                             */
-                            const shouldScroll =
-                                isNearBottom();
-
-
+                            // Uzlaşdırılmayıbsa, normal qaydada əlavə et.
                             const inserted =
                                 insertServerMessageInOrder(
                                     message,
                                     true
                                 );
 
+                            // Yalnız yeni əlavə edilən qarşı tərəf mesajı bildiriş yaradır.
+                            if (inserted && isIncoming) {
 
-                            if (
-                                inserted &&
-                                shouldScroll
-                            ) {
-
-                                scrollToBottom();
+                                if (shouldScroll) {
+                                    scrollToBottom();
+                                } else {
+                                    showNewMessageButton();
+                                }
 
                             }
 
@@ -4049,109 +4092,99 @@ $(document).ready(function () {
                 conversationId +
                 "/messages/",
 
-            type:
-                "GET",
+            type: "GET",
 
+            success: function (messages) {
 
-            success:
-                function (messages) {
+                if (!Array.isArray(messages)) {
+                    return;
+                }
 
-                    if (
-                        !Array.isArray(messages)
-                    ) {
-                        return;
-                    }
+                const shouldScroll = isNearBottom();
 
+                let incomingAdded = false;
 
-                    const shouldScroll =
-                        isNearBottom();
+                messages
+                    .filter(isRealServerMessage)
+                    .sort(function (a, b) {
+                        return Number(a.id) - Number(b.id);
+                    })
+                    .forEach(function (message) {
 
+                        const senderId =
+                            message.sender &&
+                            message.sender.id;
 
-                    let added = false;
+                        const currentUserId =
+                            currentUser &&
+                            currentUser.id;
 
+                        const isIncoming =
+                            currentUserId !== null &&
+                            currentUserId !== undefined &&
+                            senderId !== null &&
+                            senderId !== undefined &&
+                            String(senderId) !== String(currentUserId);
 
-                    messages
-                        .filter(
-                            isRealServerMessage
-                        )
-                        .sort(
-                            function (a, b) {
+                        /*
+                         * Öz mesajımızdırsa optimistic mesajı
+                         * təsdiqlə, amma bildiriş göstərmə.
+                         */
 
-                                return (
-                                    Number(a.id) -
-                                    Number(b.id)
-                                );
+                        const messageId = String(message.id);
 
+                        const wasAlreadyRendered =
+                            renderedMessageIds.has(messageId);
+
+                        if (reconcileOptimisticMessage(message)) {
+
+                            if (isIncoming && !wasAlreadyRendered) {
+                                incomingAdded = true;
                             }
-                        )
-                        .forEach(
-                            function (message) {
 
-                                /*
-                                 * Əvvəl optimistic
-                                 * reconciliation.
-                                 */
-                                if (
-                                    reconcileOptimisticMessage(
-                                        message
-                                    )
-                                ) {
+                            return;
+                        }
 
-                                    added = true;
+                        const inserted =
+                            insertServerMessageInOrder(message, true);
 
-                                    return;
+                        /*
+                         * Yalnız həqiqətən yeni əlavə edilən
+                         * qarşı tərəfin mesajını nəzərə al.
+                         */
+                        if (inserted && isIncoming) {
+                            incomingAdded = true;
+                        }
 
-                                }
+                    });
 
+                if (incomingAdded) {
 
-                                const inserted =
-                                    insertServerMessageInOrder(
-                                        message,
-                                        true
-                                    );
-
-
-                                if (inserted) {
-
-                                    added = true;
-
-                                }
-
-                            }
-                        );
-
-
-                    if (
-                        added &&
-                        shouldScroll
-                    ) {
-
+                    if (shouldScroll) {
                         scrollToBottom();
-
+                    } else {
+                        showNewMessageButton();
                     }
-
-
-                    /*
-                     * Pending queue də yoxlanılır.
-                     */
-                    requestOutgoingQueue();
-
-                },
-
-
-            error:
-                function (xhr) {
-
-                    console.warn(
-                        "Yeni mesajlar yoxlanılmadı:",
-                        xhr.responseText
-                    );
 
                 }
+
+                requestOutgoingQueue();
+
+            },
+
+            error: function (xhr) {
+
+                console.warn(
+                    "Yeni mesajlar yoxlanılmadı:",
+                    xhr.responseText
+                );
+
+            }
 
         });
 
     }
+
 
 
     // =========================================================
