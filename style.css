@@ -791,6 +791,17 @@ a {
   background: #35b86b;
 }
 
+.offline-dot {
+  width: 11px;
+  height: 11px;
+  position: absolute;
+  right: 0;
+  bottom: 1px;
+  border: 2px solid #f5f7fb;
+  border-radius: 50%;
+  background: #ff0000;
+}
+
 .chat-content {
   min-width: 0;
   flex: 1;
@@ -1420,6 +1431,9 @@ body.dark-mode .chat-avatar {
   color: #0d1117;
 }
 body.dark-mode .online-dot {
+  border-color: #0d1117;
+}
+body.dark-mode .offline-dot {
   border-color: #0d1117;
 }
 body.dark-mode .chat-top h3 {

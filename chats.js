@@ -349,6 +349,9 @@ $(document).ready(function () {
                     .addClass("chat-avatar")
                     .text(avatarText);
 
+            const onlineDot = $("<span>")
+                .addClass("online-dot offline-dot");
+
 
             const content =
                 $("<div>")
@@ -385,6 +388,14 @@ $(document).ready(function () {
                         "Söhbət başladı"
                     );
 
+            const otherUser = otherParticipants[0];
+
+            const isOnline = otherUser?.is_online === true;
+
+            onlineDot
+                .removeClass("online-dot offline-dot")
+                .addClass(isOnline ? "online-dot" : "offline-dot");
+
 
             top.append(title);
             top.append(time);
@@ -395,9 +406,11 @@ $(document).ready(function () {
             content.append(bottom);
 
             chatItem.append(avatar);
+            avatar.append(onlineDot);
             chatItem.append(content);
 
             $("#chatList").append(chatItem);
+
 
         });
 
@@ -440,7 +453,7 @@ $(document).ready(function () {
         const month = String(date.getMonth() + 1).padStart(2, "0");
         const year = date.getFullYear();
 
-        
+
 
         if (sameDay) {
 
