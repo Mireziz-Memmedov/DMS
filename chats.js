@@ -429,6 +429,18 @@ $(document).ready(function () {
             date.toDateString() ===
             now.toDateString();
 
+        const yesterday = new Date(now);
+
+        yesterday.setDate(now.getDate() - 1);
+
+        const isYesterday =
+            date.toDateString() === yesterday.toDateString();
+
+        const day = String(date.getDate()).padStart(2, "0");
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const year = date.getFullYear();
+
+        
 
         if (sameDay) {
 
@@ -442,14 +454,13 @@ $(document).ready(function () {
 
         }
 
+        if (isYesterday) {
 
-        return date.toLocaleDateString(
-            "az-AZ",
-            {
-                day: "2-digit",
-                month: "2-digit"
-            }
-        );
+            return "Dünən";
+
+        }
+
+        return `${day}.${month}.${year}`;
 
     }
 
