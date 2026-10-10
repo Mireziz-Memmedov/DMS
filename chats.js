@@ -234,26 +234,19 @@ $(document).ready(function () {
 
         $("#chatList").empty();
 
+        if (!conversations || !conversations.length) {
 
-        if (!conversations.length) {
-
-            $("#emptyState")
-                .addClass("active");
+            $("#emptyState").addClass("active");
 
             return;
 
         }
 
-
-        $("#emptyState")
-            .removeClass("active");
-
+        $("#emptyState").removeClass("active");
 
         const currentUser =
             JSON.parse(
-                localStorage.getItem(
-                    "currentUser"
-                )
+                localStorage.getItem("currentUser")
             ) || null;
 
 
@@ -267,25 +260,29 @@ $(document).ready(function () {
             // OTHER USER
             // =========================
 
-            let otherParticipants =
-                participants.filter(function (user) {
-
-                    if (!currentUser) {
-                        return true;
-                    }
+            const otherParticipants = currentUser
+                ? participants.filter(function (user) {
 
                     return String(user.id) !==
                         String(currentUser.id);
 
+                })
+                : participants;
+
+
+            // =========================
+            // SELF CHAT
+            // =========================
+
+            const isSelfChat =
+                currentUser &&
+                participants.length > 0 &&
+                participants.every(function (user) {
+
+                    return String(user.id) ===
+                        String(currentUser.id);
+
                 });
-
-
-            if (!otherParticipants.length) {
-
-                otherParticipants =
-                    participants;
-
-            }
 
 
             // =========================
@@ -296,18 +293,18 @@ $(document).ready(function () {
                 otherParticipants.map(function (user) {
 
                     const fullName =
-                        `${user.first_name || ""} ${user.last_name || ""} `
+                        `${user.first_name || ""} ${user.last_name || ""}`
                             .trim();
 
-                    return fullName ||
-                        user.username;
+                    return fullName || user.username || "";
 
-                });
+                }).filter(Boolean);
 
 
             const chatName =
-                names.join(", ") ||
-                "Naməlum söhbət";
+                isSelfChat
+                    ? "Mən"
+                    : names.join(", ") || "Naməlum söhbət";
 
 
             // =========================
@@ -315,12 +312,14 @@ $(document).ready(function () {
             // =========================
 
             const firstName =
-                otherParticipants[0]?.first_name ||
-                "";
+                isSelfChat
+                    ? ""
+                    : (otherParticipants[0]?.first_name || "");
 
             const lastName =
-                otherParticipants[0]?.last_name ||
-                "";
+                isSelfChat
+                    ? ""
+                    : (otherParticipants[0]?.last_name || "");
 
 
             const avatarText =
@@ -349,8 +348,10 @@ $(document).ready(function () {
                     .addClass("chat-avatar")
                     .text(avatarText);
 
-            const onlineDot = $("<span>")
-                .addClass("online-dot offline-dot");
+
+            const onlineDot =
+                $("<span>")
+                    .addClass("online-dot offline-dot");
 
 
             const content =
@@ -384,18 +385,40 @@ $(document).ready(function () {
 
             const lastMessage =
                 $("<p>")
-                    .text(
-                        "Söhbət başladı"
-                    );
+                    .text("Söhbət başladı");
 
-            const otherUser = otherParticipants[0];
 
-            const isOnline = otherUser?.is_online === true;
+            // =========================
+            // ONLINE STATUS
+            // =========================
+
+            const otherUser =
+                otherParticipants[0];
+
+            const isOnline =
+                otherUser?.is_online === true;
+
 
             onlineDot
                 .removeClass("online-dot offline-dot")
-                .addClass(isOnline ? "online-dot" : "offline-dot");
+                .addClass(
+                    isOnline
+                        ? "online-dot"
+                        : "offline-dot"
+                );
 
+
+            // Özünlə söhbətdə online nöqtəsini göstərmə.
+            if (isSelfChat) {
+
+                onlineDot.hide();
+
+            }
+
+
+            // =========================
+            // BUILD CHAT ITEM
+            // =========================
 
             top.append(title);
             top.append(time);
@@ -406,11 +429,12 @@ $(document).ready(function () {
             content.append(bottom);
 
             chatItem.append(avatar);
+
             avatar.append(onlineDot);
+
             chatItem.append(content);
 
             $("#chatList").append(chatItem);
-
 
         });
 
