@@ -80,6 +80,30 @@ $(document).ready(function () {
                 )
             ) || null;
 
+        employees.sort(function (a, b) {
+
+            const currentUser = JSON.parse(
+                localStorage.getItem("currentUser")
+            );
+
+            const aIsMe = currentUser &&
+                String(a.id) === String(currentUser.id);
+
+            const bIsMe = currentUser &&
+                String(b.id) === String(currentUser.id);
+
+            if (aIsMe) return -1;
+            if (bIsMe) return 1;
+
+            const nameA =
+                `${a.first_name || ""} ${a.last_name || ""}`.trim();
+
+            const nameB =
+                `${b.first_name || ""} ${b.last_name || ""}`.trim();
+
+            return nameA.localeCompare(nameB, "az");
+        });
+
 
         employees.forEach(function (employee) {
 
@@ -822,65 +846,148 @@ $(document).ready(function () {
     // CONTACT CLICK
     // =========================
 
-    $(document).on(
-        "click",
-        ".contact-item",
-        function () {
+    $(document).on("click", ".contact-item", function () {
 
-            const userId =
-                $(this).attr("data-user-id");
+        const userId = $(this).attr("data-user-id");
 
-            console.log(
-                "CLICKED CONTACT:",
-                $(this).text().trim()
-            );
+        const currentUser = JSON.parse(
+            localStorage.getItem("currentUser")
+        ) || null;
 
-            console.log(
-                "CLICKED USER ID:",
-                userId
-            );
+        if (!userId || !currentUser) {
+            return;
+        }
 
-            if (!userId) {
+        const isSelf = String(userId) === String(currentUser.id);
+
+        // =========================
+        // OPEN CONVERSATION
+        // =========================
+
+        function openConversation(conversationId) {
+
+            if (!conversationId) {
+                console.error("Conversation ID tapılmadı.");
                 return;
             }
+
+            window.location.href =
+                "chat.html?conversation=" +
+                encodeURIComponent(conversationId);
+        }
+
+        // =========================
+        // CREATE / GET CONVERSATION
+        // =========================
+
+        function createConversation(participantId) {
 
             apiRequest({
 
                 url: API_URL + "/api/conversations/create/",
                 type: "POST",
-
                 contentType: "application/json",
 
                 data: JSON.stringify({
-                    participants: [
-                        parseInt(userId)
-                    ]
+                    participants: [parseInt(participantId, 10)]
                 }),
 
                 success: function (conversation) {
 
-                    console.log(
-                        "OPENED CONVERSATION:",
-                        conversation.id
-                    );
+                    console.log("Açılan söhbət:", conversation);
 
-                    window.location.href =
-                        "chat.html?conversation=" +
-                        encodeURIComponent(
-                            conversation.id
-                        );
+                    openConversation(conversation.id);
+
                 },
 
                 error: function (xhr) {
 
-                    console.log(
+                    console.error(
                         "Söhbət yaradıla bilmədi:",
                         xhr.responseText
                     );
+
                 }
+
             });
         }
-    );
+
+        // =========================
+        // SELF CHAT
+        // =========================
+
+        if (isSelf) {
+
+            apiRequest({
+
+                url: API_URL + "/api/conversations/",
+                type: "GET",
+
+                success: function (response) {
+
+                    const conversations = Array.isArray(response)
+                        ? response
+                        : (response.results || []);
+
+                    const selfConversation = conversations.find(
+                        function (conversation) {
+
+                            const participants =
+                                conversation.participants || [];
+
+                            return (
+                                participants.length > 0 &&
+                                participants.every(function (user) {
+
+                                    const participantId =
+                                        typeof user === "object"
+                                            ? user.id
+                                            : user;
+
+                                    return String(participantId) ===
+                                        String(currentUser.id);
+
+                                })
+                            );
+
+                        }
+                    );
+
+                    if (selfConversation) {
+
+                        // Mövcud öz söhbətini aç.
+                        openConversation(selfConversation.id);
+
+                    } else {
+
+                        // Öz söhbəti yoxdursa, yarat.
+                        createConversation(currentUser.id);
+
+                    }
+
+                },
+
+                error: function (xhr) {
+
+                    console.error(
+                        "Söhbətlər yüklənmədi:",
+                        xhr.responseText
+                    );
+
+                }
+
+            });
+
+            return;
+        }
+
+        // =========================
+        // OTHER EMPLOYEE CHAT
+        // =========================
+
+        createConversation(userId);
+
+    });
 
 
     // =========================
