@@ -30,7 +30,7 @@ $(document).ready(function () {
 
     let callState = "idle";
 
-    let isMuted = false;
+    let isMuted = true;
     let isSpeakerOn = true;
 
     let callTimer = null;
@@ -106,6 +106,14 @@ $(document).ready(function () {
             .attr("aria-hidden", "false");
 
         $("body").css("overflow", "hidden");
+
+        $toggleMuteButton
+            .addClass("muted")
+            .attr("aria-pressed", "true")
+            .attr("aria-label", "Mikrofonu aktiv et")
+            .find("i")
+            .removeClass("fa-microphone")
+            .addClass("fa-microphone-slash");
 
         activateMicrophone();
 
@@ -227,15 +235,15 @@ $(document).ready(function () {
 
         callState = "idle";
 
-        isMuted = false;
+        isMuted = true;
         isSpeakerOn = true;
 
         callSeconds = 0;
 
         $toggleMuteButton
-            .removeClass("muted")
-            .attr("aria-pressed", "false")
-            .attr("aria-label", "Mikrofonu söndür")
+            .addClass("muted")
+            .attr("aria-pressed", "true")
+            .attr("aria-label", "Mikrofonu aktiv et")
             .find("i")
             .removeClass("fa-microphone")
             .addClass("fa-microphone-slash");
@@ -358,8 +366,8 @@ $(document).ready(function () {
 
         $toggleMuteButton
             .find("i")
-            .toggleClass("fa-microphone-slash", !isMuted)
-            .toggleClass("fa-microphone", isMuted);
+            .toggleClass("fa-microphone-slash", isMuted)
+            .toggleClass("fa-microphone", !isMuted);
 
         $toggleMuteButton.attr(
             "aria-label",
