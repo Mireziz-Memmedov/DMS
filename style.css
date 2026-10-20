@@ -1846,12 +1846,6 @@ textarea {
   font-size: 12px;
   font-weight: 500;
 }
-.chat-user-info span.online {
-  color: #22c55e;
-}
-.chat-user-info span.offline {
-  color: #ff0000;
-}
 
 .chat-header-actions {
   display: flex;
