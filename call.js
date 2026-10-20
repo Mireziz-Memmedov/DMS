@@ -237,8 +237,8 @@ $(document).ready(function () {
             .attr("aria-pressed", "false")
             .attr("aria-label", "Mikrofonu söndür")
             .find("i")
-            .removeClass("fa-microphone-slash")
-            .addClass("fa-microphone");
+            .removeClass("fa-microphone")
+            .addClass("fa-microphone-slash");
 
         $toggleSpeakerButton
             .removeClass("speaker-off")
@@ -358,8 +358,8 @@ $(document).ready(function () {
 
         $toggleMuteButton
             .find("i")
-            .toggleClass("fa-microphone", !isMuted)
-            .toggleClass("fa-microphone-slash", isMuted);
+            .toggleClass("fa-microphone-slash", !isMuted)
+            .toggleClass("fa-microphone", isMuted);
 
         $toggleMuteButton.attr(
             "aria-label",
@@ -482,11 +482,11 @@ $(document).ready(function () {
     });
 
 
-    $closeCallModal.on("click", function () {
+    // $closeCallModal.on("click", function () {
 
-        closeCallModal();
+    //     closeCallModal();
 
-    });
+    // });
 
 
     $acceptCallButton.on("click", function () {
@@ -528,26 +528,26 @@ $(document).ready(function () {
     // CLOSE ON BACKDROP CLICK
     // ==========================================
 
-    $callModal.on("click", function (event) {
+    // $callModal.on("click", function (event) {
 
-        if (event.target === this) {
-            closeCallModal();
-        }
+    //     if (event.target === this) {
+    //         closeCallModal();
+    //     }
 
-    });
+    // });
 
 
     // ==========================================
     // ESCAPE KEY
     // ==========================================
 
-    $(document).on("keydown", function (event) {
+    // $(document).on("keydown", function (event) {
 
-        if (event.key === "Escape") {
-            closeCallModal();
-        }
+    //     if (event.key === "Escape") {
+    //         closeCallModal();
+    //     }
 
-    });
+    // });
 
 
     // ==========================================

@@ -2293,11 +2293,11 @@ textarea {
   position: relative;
   width: 100%;
   max-width: 380px;
-  min-height: 430px;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
   padding: 36px 24px 30px;
   overflow: hidden;
   background: #ffffff;
