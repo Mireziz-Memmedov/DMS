@@ -149,7 +149,8 @@ function openCallModal() {
 
     $callDuration
         .text("00:00")
-        .prop("hidden", true);
+        .prop("hidden", true)
+        .hide();
 
     $callIncomingActions.prop("hidden", true);
     $callActiveActions.prop("hidden", false);
@@ -528,8 +529,9 @@ function startCallTimer() {
     callSeconds = 0;
 
     $callDuration
+        .text("00:00")
         .prop("hidden", false)
-        .text("00:00");
+        .show();
 
     callTimer = setInterval(function () {
 
@@ -604,7 +606,8 @@ function resetCall() {
 
     $callDuration
         .text("00:00")
-        .prop("hidden", true);
+        .prop("hidden", true)
+        .hide();
 
     $callStatus.text("Zəngə hazırdır");
 
