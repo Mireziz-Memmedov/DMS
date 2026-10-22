@@ -1,569 +1,678 @@
-$(document).ready(function () {
+// ==========================================
+// CALL ELEMENTS
+// ==========================================
 
-    // ==========================================
-    // CALL ELEMENTS
-    // ==========================================
+const $audioCallButton = $("#audioCallButton");
+const $callModal = $("#callModal");
 
-    const $audioCallButton = $("#audioCallButton");
-    const $callModal = $("#callModal");
-    const $closeCallModal = $("#closeCallModal");
+const $callUserAvatar = $("#callUserAvatar");
+const $callUserName = $("#callUserName");
+const $callStatus = $("#callStatus");
+const $callDuration = $("#callDuration");
 
-    const $callUserAvatar = $("#callUserAvatar");
-    const $callUserName = $("#callUserName");
-    const $callStatus = $("#callStatus");
-    const $callDuration = $("#callDuration");
+const $callIncomingActions = $("#callIncomingActions");
+const $callActiveActions = $("#callActiveActions");
 
-    const $callIncomingActions = $("#callIncomingActions");
-    const $callActiveActions = $("#callActiveActions");
+const $acceptCallButton = $("#acceptCallButton");
+const $rejectCallButton = $("#rejectCallButton");
+const $endCallButton = $("#endCallButton");
 
-    const $acceptCallButton = $("#acceptCallButton");
-    const $rejectCallButton = $("#rejectCallButton");
-    const $endCallButton = $("#endCallButton");
+const $toggleMuteButton = $("#toggleMuteButton");
+const $toggleSpeakerButton = $("#toggleSpeakerButton");
 
-    const $toggleMuteButton = $("#toggleMuteButton");
-    const $toggleSpeakerButton = $("#toggleSpeakerButton");
 
+// ==========================================
+// CALL STATE
+// ==========================================
 
-    // ==========================================
-    // CALL STATE
-    // ==========================================
+let callState = "idle";
 
-    let callState = "idle";
+let isMuted = true;
+let isSpeakerOn = true;
 
-    let isMuted = true;
-    let isSpeakerOn = true;
+let callTimer = null;
+let callSeconds = 0;
 
-    let callTimer = null;
-    let callSeconds = 0;
+let callAudioStream = null;
+let microphoneRequestId = 0;
 
-    let callAudioStream = null;
 
+// ==========================================
+// CURRENT CHAT USER
+// ==========================================
 
-    // ==========================================
-    // CURRENT CHAT USER
-    // ==========================================
+function getChatUser() {
 
-    function getChatUser() {
+    const userName = $("#chatUserName")
+        .text()
+        .trim();
 
-        const userName = $("#chatUserName")
-            .text()
-            .trim();
+    const userAvatar = $("#chatUserAvatar")
+        .text()
+        .trim();
 
-        const userAvatar = $("#chatUserAvatar")
-            .text()
-            .trim();
+    return {
+        name: userName || "İstifadəçi",
+        avatar: userAvatar || "U"
+    };
 
-        return {
-            name: userName || "İstifadəçi",
-            avatar: userAvatar || "U"
-        };
+}
 
-    }
 
+// ==========================================
+// UPDATE CALL USER
+// ==========================================
 
-    // ==========================================
-    // UPDATE CALL USER
-    // ==========================================
+function updateCallUser() {
 
-    function updateCallUser() {
+    const user = getChatUser();
 
-        const user = getChatUser();
+    $callUserName.text(user.name);
 
-        $callUserName.text(user.name);
+    $callUserAvatar
+        .find("span")
+        .text(user.avatar);
 
-        $callUserAvatar
-            .find("span")
-            .text(user.avatar);
+}
 
-    }
 
+// ==========================================
+// UPDATE MICROPHONE BUTTON
+// ==========================================
 
-    // ==========================================
-    // OPEN CALL MODAL
-    // ==========================================
+function updateMicrophoneButton() {
 
-    function openCallModal() {
-
-        if (callState !== "idle") {
-            return;
-        }
-
-        updateCallUser();
-
-        callState = "calling";
-
-        $callStatus.text("Zəng hazırlanır...");
-
-        $callDuration
-            .text("")
-            .prop("hidden", true);
-
-        $callIncomingActions.prop("hidden", true);
-        $callActiveActions.prop("hidden", false);
-
-        $callModal
-            .prop("hidden", false)
-            .attr("aria-hidden", "false");
-
-        $("body").css("overflow", "hidden");
-
-        $toggleMuteButton
-            .addClass("muted")
-            .attr("aria-pressed", "true")
-            .attr("aria-label", "Mikrofonu aktiv et")
-            .find("i")
-            .removeClass("fa-microphone")
-            .addClass("fa-microphone-slash");
-
-        activateMicrophone();
-
-    }
-
-
-    // ==========================================
-    // CLOSE CALL MODAL
-    // ==========================================
-
-    function closeCallModal() {
-
-        if (callState === "active") {
-            return;
-        }
-
-        resetCall();
-
-    }
-
-
-    // ==========================================
-    // ACTIVATE MICROPHONE
-    // ==========================================
-
-    async function activateMicrophone() {
-
-        if (
-            !navigator.mediaDevices ||
-            !navigator.mediaDevices.getUserMedia
-        ) {
-
-            $callStatus.text(
-                "Mikrofon bu brauzerdə əlçatan deyil"
-            );
-
-            return;
-
-        }
-
-        try {
-
-            const stream =
-                await navigator.mediaDevices.getUserMedia({
-                    audio: true
-                });
-
-            if (
-                callState === "idle" ||
-                callState === "ending"
-            ) {
-
-                stream.getTracks().forEach(function (track) {
-                    track.stop();
-                });
-
-                return;
-
-            }
-
-            if (callAudioStream) {
-
-                callAudioStream
-                    .getTracks()
-                    .forEach(function (track) {
-                        track.stop();
-                    });
-
-            }
-
-            callAudioStream = stream;
-
-            callAudioStream
-                .getAudioTracks()
-                .forEach(function (track) {
-                    track.enabled = !isMuted;
-                });
-
-            $callStatus.text(
-                isMuted
-                    ? "Mikrofon söndürülüb"
-                    : "Zəng hazırlanır..."
-            );
-
-        } catch (error) {
-
-            console.error("Mikrofon xətası:", error);
-
-            $callStatus.text(
-                "Mikrofon üçün icazə verilməyib"
-            );
-
-        }
-
-    }
-
-
-    // ==========================================
-    // RESET CALL
-    // ==========================================
-
-    function resetCall() {
-
-        callState = "ending";
-
-        stopCallTimer();
-
-        if (callAudioStream) {
-
-            callAudioStream
-                .getTracks()
-                .forEach(function (track) {
-                    track.stop();
-                });
-
-            callAudioStream = null;
-
-        }
-
-        callState = "idle";
-
-        isMuted = true;
-        isSpeakerOn = true;
-
-        callSeconds = 0;
-
-        $toggleMuteButton
-            .addClass("muted")
-            .attr("aria-pressed", "true")
-            .attr("aria-label", "Mikrofonu aktiv et")
-            .find("i")
-            .removeClass("fa-microphone")
-            .addClass("fa-microphone-slash");
-
-        $toggleSpeakerButton
-            .removeClass("speaker-off")
-            .attr("aria-pressed", "false")
-            .attr("aria-label", "Səs çıxışını dəyiş")
-            .find("i")
-            .removeClass("fa-volume-xmark")
-            .addClass("fa-volume-high");
-
-        $callModal
-            .prop("hidden", true)
-            .attr("aria-hidden", "true");
-
-        $callIncomingActions.prop("hidden", true);
-        $callActiveActions.prop("hidden", true);
-
-        $callDuration
-            .text("")
-            .prop("hidden", true);
-
-        $("body").css("overflow", "");
-
-    }
-
-
-    // ==========================================
-    // ACCEPT CALL
-    // ==========================================
-
-    function acceptCall() {
-
-        if (
-            callState !== "incoming" &&
-            callState !== "calling"
-        ) {
-            return;
-        }
-
-        callState = "active";
-
-        $callStatus.text("Zəng aktivdir");
-
-        $callIncomingActions.prop("hidden", true);
-        $callActiveActions.prop("hidden", false);
-
-        startCallTimer();
-
-        if (!callAudioStream) {
-            activateMicrophone();
-        }
-
-    }
-
-
-
-    // ==========================================
-    // REJECT CALL
-    // ==========================================
-
-    function rejectCall() {
-
-        if (
-            callState !== "incoming" &&
-            callState !== "calling"
-        ) {
-            return;
-        }
-
-        resetCall();
-
-    }
-
-
-    // ==========================================
-    // END CALL
-    // ==========================================
-
-    function endCall() {
-
-        if (callState === "idle") {
-            return;
-        }
-
-        resetCall();
-
-    }
-
-
-    // ==========================================
-    // MUTE MICROPHONE
-    // ==========================================
-
-    function toggleMute() {
-
-        if (
-            callState !== "active" &&
-            callState !== "calling"
-        ) {
-            return;
-        }
-
-        isMuted = !isMuted;
-
-        if (callAudioStream) {
-
-            callAudioStream
-                .getAudioTracks()
-                .forEach(function (track) {
-                    track.enabled = !isMuted;
-                });
-
-        }
-
-        $toggleMuteButton
-            .toggleClass("muted", isMuted)
-            .attr("aria-pressed", String(isMuted));
-
-        $toggleMuteButton
-            .find("i")
-            .toggleClass("fa-microphone-slash", isMuted)
-            .toggleClass("fa-microphone", !isMuted);
-
-        $toggleMuteButton.attr(
+    $toggleMuteButton
+        .toggleClass("muted", isMuted)
+        .attr("aria-pressed", String(isMuted))
+        .attr(
             "aria-label",
             isMuted
-                ? "Mikrofonu aktivləşdir"
+                ? "Mikrofonu aktiv et"
                 : "Mikrofonu söndür"
         );
 
-        if (isMuted) {
+    $toggleMuteButton
+        .find("i")
+        .toggleClass("fa-microphone-slash", isMuted)
+        .toggleClass("fa-microphone", !isMuted);
 
-            $callStatus.text("Mikrofon söndürülüb");
-
-        } else if (callAudioStream) {
-
-            $callStatus.text("Mikrofon aktivdir");
-
-        } else {
-
-            $callStatus.text("Mikrofon aktivləşdirilməyib");
-
-        }
-
-    }
+}
 
 
-    // ==========================================
-    // TOGGLE SPEAKER
-    // ==========================================
+// ==========================================
+// UPDATE SPEAKER BUTTON
+// ==========================================
 
-    function toggleSpeaker() {
+function updateSpeakerButton() {
 
-        if (
-            callState !== "active" &&
-            callState !== "calling"
-        ) {
-            return;
-        }
-
-        isSpeakerOn = !isSpeakerOn;
-
-        $toggleSpeakerButton
-            .toggleClass("speaker-off", !isSpeakerOn)
-            .attr("aria-pressed", String(!isSpeakerOn));
-
-        $toggleSpeakerButton
-            .find("i")
-            .toggleClass("fa-volume-high", isSpeakerOn)
-            .toggleClass("fa-volume-xmark", !isSpeakerOn);
-
-        $toggleSpeakerButton.attr(
+    $toggleSpeakerButton
+        .toggleClass("speaker-off", !isSpeakerOn)
+        .attr("aria-pressed", String(!isSpeakerOn))
+        .attr(
             "aria-label",
             isSpeakerOn
                 ? "Səs çıxışını söndür"
                 : "Səs çıxışını aktivləşdir"
         );
 
+    $toggleSpeakerButton
+        .find("i")
+        .toggleClass("fa-volume-high", isSpeakerOn)
+        .toggleClass("fa-volume-xmark", !isSpeakerOn);
+
+}
+
+
+// ==========================================
+// OPEN CALL MODAL
+// ==========================================
+
+function openCallModal() {
+
+    if (callState !== "idle") {
+        return;
     }
 
+    updateCallUser();
 
-    // ==========================================
-    // CALL TIMER
-    // ==========================================
+    callState = "calling";
 
-    function startCallTimer() {
+    isMuted = true;
+    isSpeakerOn = true;
 
-        stopCallTimer();
+    callSeconds = 0;
 
-        callSeconds = 0;
+    stopCallTimer();
 
-        $callDuration
-            .prop("hidden", false)
-            .text("00:00");
+    $callStatus.text("Zəng edilir...");
 
-        callTimer = setInterval(function () {
+    $callDuration
+        .text("00:00")
+        .prop("hidden", true);
 
-            callSeconds++;
+    $callIncomingActions.prop("hidden", true);
+    $callActiveActions.prop("hidden", false);
 
-            const minutes = String(
-                Math.floor(callSeconds / 60)
-            ).padStart(2, "0");
+    $callModal
+        .prop("hidden", false)
+        .attr("aria-hidden", "false");
 
-            const seconds = String(
-                callSeconds % 60
-            ).padStart(2, "0");
+    $("body").css("overflow", "hidden");
 
-            $callDuration.text(
-                minutes + ":" + seconds
+    updateMicrophoneButton();
+    updateSpeakerButton();
+
+    /*
+     * Vacib:
+     * Zəng başlayan zaman mikrofon açılmır.
+     * Burada getUserMedia() çağırılmır.
+     * Mikrofon icazəsi yalnız istifadəçi
+     * mikrofon düyməsinə basanda istənilir.
+     */
+
+}
+
+
+// ==========================================
+// CLOSE CALL MODAL
+// ==========================================
+
+function closeCallModal() {
+
+    if (callState !== "idle") {
+        return;
+    }
+
+    resetCall();
+
+}
+
+
+// ==========================================
+// ACTIVATE MICROPHONE
+// ==========================================
+
+async function activateMicrophone() {
+
+    if (
+        callState !== "calling" &&
+        callState !== "active"
+    ) {
+        return false;
+    }
+
+    if (callAudioStream) {
+
+        const audioTracks = callAudioStream.getAudioTracks();
+
+        if (
+            audioTracks.length > 0 &&
+            audioTracks.some(function (track) {
+                return track.readyState === "live";
+            })
+        ) {
+
+            audioTracks.forEach(function (track) {
+                track.enabled = true;
+            });
+
+            isMuted = false;
+
+            updateMicrophoneButton();
+
+            $callStatus.text(
+                callState === "active"
+                    ? "Zəng aktivdir"
+                    : "Mikrofon aktivdir"
             );
 
-        }, 1000);
+            return true;
+
+        }
+
+        callAudioStream = null;
 
     }
 
+    if (
+        !navigator.mediaDevices ||
+        !navigator.mediaDevices.getUserMedia
+    ) {
 
-    // ==========================================
-    // STOP CALL TIMER
-    // ==========================================
+        $callStatus.text(
+            "Mikrofon bu brauzerdə əlçatan deyil"
+        );
 
-    function stopCallTimer() {
+        return false;
 
-        if (callTimer !== null) {
+    }
 
-            clearInterval(callTimer);
+    const requestId = ++microphoneRequestId;
 
-            callTimer = null;
+    $toggleMuteButton.prop("disabled", true);
 
+    $callStatus.text("Mikrofon aktivləşdirilir...");
+
+    try {
+
+        const stream =
+            await navigator.mediaDevices.getUserMedia({
+                audio: true,
+                video: false
+            });
+
+        /*
+         * İcazə pəncərəsi açıq olarkən istifadəçi
+         * zəngi bitiribsə, əldə edilən mikrofon
+         * dərhal bağlanır.
+         */
+
+        if (
+            requestId !== microphoneRequestId ||
+            callState === "idle" ||
+            callState === "ending"
+        ) {
+
+            stream.getTracks().forEach(function (track) {
+                track.stop();
+            });
+
+            return false;
+
+        }
+
+        callAudioStream = stream;
+
+        callAudioStream
+            .getAudioTracks()
+            .forEach(function (track) {
+                track.enabled = true;
+            });
+
+        isMuted = false;
+
+        updateMicrophoneButton();
+
+        $callStatus.text(
+            callState === "active"
+                ? "Zəng aktivdir"
+                : "Mikrofon aktivdir"
+        );
+
+        return true;
+
+    } catch (error) {
+
+        console.error(
+            "Mikrofon xətası:",
+            error
+        );
+
+        isMuted = true;
+
+        updateMicrophoneButton();
+
+        if (error.name === "NotAllowedError") {
+
+            $callStatus.text(
+                "Mikrofon icazəsi verilməyib"
+            );
+
+        } else if (error.name === "NotFoundError") {
+
+            $callStatus.text(
+                "Mikrofon tapılmadı"
+            );
+
+        } else if (error.name === "NotReadableError") {
+
+            $callStatus.text(
+                "Mikrofon istifadə edilə bilmir"
+            );
+
+        } else {
+
+            $callStatus.text(
+                "Mikrofonu aktivləşdirmək mümkün olmadı"
+            );
+
+        }
+
+        return false;
+
+    } finally {
+
+        if (requestId === microphoneRequestId) {
+            $toggleMuteButton.prop("disabled", false);
         }
 
     }
 
-
-    // ==========================================
-    // EVENT LISTENERS
-    // ==========================================
-
-    $audioCallButton.on("click", function () {
-
-        openCallModal();
-
-    });
+}
 
 
-    // $closeCallModal.on("click", function () {
+// ==========================================
+// STOP MICROPHONE
+// ==========================================
 
-    //     closeCallModal();
+function stopMicrophone() {
 
-    // });
+    microphoneRequestId++;
 
+    if (callAudioStream) {
 
-    $acceptCallButton.on("click", function () {
+        callAudioStream
+            .getTracks()
+            .forEach(function (track) {
+                track.stop();
+            });
 
-        acceptCall();
+        callAudioStream = null;
 
-    });
+    }
 
-
-    $rejectCallButton.on("click", function () {
-
-        rejectCall();
-
-    });
-
-
-    $endCallButton.on("click", function () {
-
-        endCall();
-
-    });
+}
 
 
-    $toggleMuteButton.on("click", function () {
+// ==========================================
+// ACCEPT CALL
+// ==========================================
 
-        toggleMute();
+function acceptCall() {
 
-    });
+    if (
+        callState !== "incoming" &&
+        callState !== "calling"
+    ) {
+        return;
+    }
 
+    callState = "active";
 
-    $toggleSpeakerButton.on("click", function () {
+    $callStatus.text("Zəng aktivdir");
 
-        toggleSpeaker();
+    $callIncomingActions.prop("hidden", true);
+    $callActiveActions.prop("hidden", false);
 
-    });
+    /*
+     * Bu, hazırkı interfeysdə taymeri başladır.
+     * Real zəngdə taymer qarşı tərəfin qəbul
+     * mesajı və WebRTC bağlantısı təsdiqlənəndə
+     * başladılmalıdır.
+     */
 
+    startCallTimer();
 
-    // ==========================================
-    // CLOSE ON BACKDROP CLICK
-    // ==========================================
-
-    // $callModal.on("click", function (event) {
-
-    //     if (event.target === this) {
-    //         closeCallModal();
-    //     }
-
-    // });
-
-
-    // ==========================================
-    // ESCAPE KEY
-    // ==========================================
-
-    // $(document).on("keydown", function (event) {
-
-    //     if (event.key === "Escape") {
-    //         closeCallModal();
-    //     }
-
-    // });
+}
 
 
-    // ==========================================
-    // INITIAL STATE
-    // ==========================================
+// ==========================================
+// REJECT CALL
+// ==========================================
 
-    $callModal.prop("hidden", true);
+function rejectCall() {
+
+    if (
+        callState !== "incoming" &&
+        callState !== "calling"
+    ) {
+        return;
+    }
+
+    resetCall();
+
+}
+
+
+// ==========================================
+// END CALL
+// ==========================================
+
+function endCall() {
+
+    if (callState === "idle") {
+        return;
+    }
+
+    resetCall();
+
+}
+
+
+// ==========================================
+// TOGGLE MICROPHONE
+// ==========================================
+
+async function toggleMute() {
+
+    if (
+        callState !== "active" &&
+        callState !== "calling"
+    ) {
+        return;
+    }
+
+    /*
+     * Mikrofon bağlıdırsa, istifadəçi düyməyə
+     * basdıqda icazə alınır və mikrofon açılır.
+     */
+
+    if (isMuted) {
+
+        await activateMicrophone();
+
+        return;
+
+    }
+
+    /*
+     * Mikrofon artıq açıqdırsa,
+     * yenidən icazə istəmədən söndürülür.
+     */
+
+    isMuted = true;
+
+    if (callAudioStream) {
+
+        callAudioStream
+            .getAudioTracks()
+            .forEach(function (track) {
+                track.enabled = false;
+            });
+
+    }
+
+    updateMicrophoneButton();
+
+    $callStatus.text("Mikrofon söndürülüb");
+
+}
+
+
+// ==========================================
+// TOGGLE SPEAKER
+// ==========================================
+
+function toggleSpeaker() {
+
+    if (
+        callState !== "active" &&
+        callState !== "calling"
+    ) {
+        return;
+    }
+
+    isSpeakerOn = !isSpeakerOn;
+
+    updateSpeakerButton();
+
+    /*
+     * Hazırda yalnız düymənin vəziyyəti dəyişir.
+     * Real səs çıxışını idarə etmək üçün WebRTC
+     * audio bağlantısı və uyğun audio çıxış
+     * idarəetməsi əlavə edilməlidir.
+     */
+
+}
+
+
+// ==========================================
+// CALL TIMER
+// ==========================================
+
+function startCallTimer() {
+
+    stopCallTimer();
+
+    callSeconds = 0;
+
+    $callDuration
+        .prop("hidden", false)
+        .text("00:00");
+
+    callTimer = setInterval(function () {
+
+        if (callState !== "active") {
+            stopCallTimer();
+            return;
+        }
+
+        callSeconds++;
+
+        const minutes = String(
+            Math.floor(callSeconds / 60)
+        ).padStart(2, "0");
+
+        const seconds = String(
+            callSeconds % 60
+        ).padStart(2, "0");
+
+        $callDuration.text(
+            minutes + ":" + seconds
+        );
+
+    }, 1000);
+
+}
+
+
+// ==========================================
+// STOP CALL TIMER
+// ==========================================
+
+function stopCallTimer() {
+
+    if (callTimer !== null) {
+
+        clearInterval(callTimer);
+
+        callTimer = null;
+
+    }
+
+}
+
+
+// ==========================================
+// RESET CALL
+// ==========================================
+
+function resetCall() {
+
+    callState = "ending";
+
+    stopCallTimer();
+    stopMicrophone();
+
+    isMuted = true;
+    isSpeakerOn = true;
+
+    callSeconds = 0;
+
+    updateMicrophoneButton();
+    updateSpeakerButton();
+
+    $toggleMuteButton.prop("disabled", false);
+
+    $callModal
+        .prop("hidden", true)
+        .attr("aria-hidden", "true");
+
     $callIncomingActions.prop("hidden", true);
     $callActiveActions.prop("hidden", true);
 
+    $callDuration
+        .text("00:00")
+        .prop("hidden", true);
+
+    $callStatus.text("Zəngə hazırdır");
+
+    $("body").css("overflow", "");
+
+    callState = "idle";
+
+}
+
+
+// ==========================================
+// EVENT LISTENERS
+// ==========================================
+
+$audioCallButton.on("click", function () {
+
+    openCallModal();
+
 });
+
+
+$acceptCallButton.on("click", function () {
+
+    acceptCall();
+
+});
+
+
+$rejectCallButton.on("click", function () {
+
+    rejectCall();
+
+});
+
+
+$endCallButton.on("click", function () {
+
+    endCall();
+
+});
+
+
+$toggleMuteButton.on("click", function () {
+
+    toggleMute();
+
+});
+
+
+$toggleSpeakerButton.on("click", function () {
+
+    toggleSpeaker();
+
+});
+
+
+// ==========================================
+// INITIAL STATE
+// ==========================================
+
+$callModal
+    .prop("hidden", true)
+    .attr("aria-hidden", "true");
+
+$callIncomingActions.prop("hidden", true);
+$callActiveActions.prop("hidden", true);
+
+$callDuration.prop("hidden", true);
+
+updateMicrophoneButton();
+updateSpeakerButton();
