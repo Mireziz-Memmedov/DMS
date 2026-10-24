@@ -1,5 +1,6 @@
 $(document).ready(function () {
 
+
     // ==========================================
     // CALL ELEMENTS
     // ==========================================
@@ -47,7 +48,6 @@ $(document).ready(function () {
     let callTargetUserId = null;
     let isCallInitiator = false;
     let isRemoteDescriptionSet = false;
-
     let isEndingCall = false;
 
     const iceServers = {
@@ -65,15 +65,10 @@ $(document).ready(function () {
 
     function getChatUser() {
 
-        const userName = $("#chatUserName")
-            .text()
-            .trim();
-
-        const userAvatar = $("#chatUserAvatar")
-            .text()
-            .trim();
-
         const otherUser = window.DMSOtherUser || {};
+
+        const userName = $("#chatUserName").text().trim();
+        const userAvatar = $("#chatUserAvatar").text().trim();
 
         return {
             id: otherUser.id || null,
@@ -97,8 +92,7 @@ $(document).ready(function () {
             return null;
         }
 
-        const currentUser =
-            window.DMSCallSocket.getCurrentUser();
+        const currentUser = window.DMSCallSocket.getCurrentUser();
 
         return currentUser && currentUser.id
             ? String(currentUser.id)
@@ -111,45 +105,41 @@ $(document).ready(function () {
     // SEND CALL SIGNAL
     // ==========================================
 
-    function sendCallSignal(type, extraData) {
-
-        if (!window.DMSCallSocket) {
-
-            console.error(
-                "DMSCallSocket tapılmadı. chat.js yoxlanmalıdır."
-            );
-
-            return false;
-
-        }
+    function sendCallSignal(type, extraData, targetUserId) {
 
         if (
+            !window.DMSCallSocket ||
             typeof window.DMSCallSocket.sendSignal !== "function"
         ) {
-
             return false;
-
         }
 
-        if (!callTargetUserId) {
+        const recipientId = targetUserId || callTargetUserId;
 
-            console.error(
-                "Zəng ediləcək istifadəçinin ID-si yoxdur."
-            );
-
+        if (!recipientId) {
+            console.error("Zəng ediləcək istifadəçinin ID-si yoxdur.");
             return false;
-
         }
 
         const signal = Object.assign(
             {
                 type: type,
-                to_user_id: Number(callTargetUserId)
+                to_user_id: Number(recipientId)
             },
             extraData || {}
         );
 
-        return window.DMSCallSocket.sendSignal(signal);
+        try {
+
+            return window.DMSCallSocket.sendSignal(signal) === true;
+
+        } catch (error) {
+
+            console.error("Zəng siqnalı göndərilmədi:", error);
+
+            return false;
+
+        }
 
     }
 
@@ -164,15 +154,13 @@ $(document).ready(function () {
 
         $callUserName.text(user.name);
 
-        $callUserAvatar
-            .find("span")
-            .text(user.avatar);
+        $callUserAvatar.find("span").text(user.avatar);
 
     }
 
 
     // ==========================================
-    // UPDATE MICROPHONE BUTTON
+    // MICROPHONE BUTTON
     // ==========================================
 
     function updateMicrophoneButton() {
@@ -196,7 +184,7 @@ $(document).ready(function () {
 
 
     // ==========================================
-    // UPDATE SPEAKER BUTTON
+    // SPEAKER BUTTON
     // ==========================================
 
     function updateSpeakerButton() {
@@ -217,16 +205,14 @@ $(document).ready(function () {
             .toggleClass("fa-volume-xmark", !isSpeakerOn);
 
         if (remoteAudioElement) {
-
             remoteAudioElement.muted = !isSpeakerOn;
-
         }
 
     }
 
 
     // ==========================================
-    // UPDATE CALL ACTIONS
+    // CALL ACTIONS
     // ==========================================
 
     function showIncomingActions() {
@@ -267,15 +253,12 @@ $(document).ready(function () {
 
         const user = getChatUser();
 
-        if (!user.id) {
+        if (
+            !user.id ||
+            String(user.id) === String(getCurrentUserId())
+        ) {
 
-            console.error(
-                "Qarşı tərəfin ID-si tapılmadı. window.DMSOtherUser yoxlanmalıdır."
-            );
-
-            alert(
-                "Zəng etmək mümkün olmadı: istifadəçi məlumatı tapılmadı."
-            );
+            alert("Zəng ediləcək istifadəçi tapılmadı.");
 
             return;
 
@@ -284,7 +267,8 @@ $(document).ready(function () {
         callTargetUserId = user.id;
         isCallInitiator = true;
 
-        updateCallUser();
+        isRemoteDescriptionSet = false;
+        pendingIceCandidates = [];
 
         callState = "calling";
 
@@ -294,6 +278,8 @@ $(document).ready(function () {
         callSeconds = 0;
 
         stopCallTimer();
+
+        updateCallUser();
 
         $callStatus.text("Zəng edilir...");
 
@@ -314,32 +300,12 @@ $(document).ready(function () {
         updateMicrophoneButton();
         updateSpeakerButton();
 
-        createPeerConnection();
-
-        if (!peerConnection) {
-
+        if (!createPeerConnection()) {
             resetCall(false);
-
             return;
-
         }
 
         createCallOffer();
-
-    }
-
-
-    // ==========================================
-    // CLOSE CALL MODAL
-    // ==========================================
-
-    function closeCallModal() {
-
-        if (callState === "idle") {
-
-            resetCall(false);
-
-        }
 
     }
 
@@ -354,10 +320,9 @@ $(document).ready(function () {
 
             remoteAudioElement = document.createElement("audio");
 
+            remoteAudioElement.id = "dmsRemoteAudio";
             remoteAudioElement.autoplay = true;
             remoteAudioElement.playsInline = true;
-
-            remoteAudioElement.id = "dmsRemoteAudio";
 
             document.body.appendChild(remoteAudioElement);
 
@@ -377,9 +342,7 @@ $(document).ready(function () {
     function createPeerConnection() {
 
         if (peerConnection) {
-
             return peerConnection;
-
         }
 
         if (!window.RTCPeerConnection) {
@@ -394,20 +357,13 @@ $(document).ready(function () {
 
         try {
 
-            peerConnection = new RTCPeerConnection(
-                iceServers
-            );
+            peerConnection = new RTCPeerConnection(iceServers);
 
         } catch (error) {
 
-            console.error(
-                "WebRTC bağlantısı yaradıla bilmədi:",
-                error
-            );
+            console.error("WebRTC bağlantısı yaradıla bilmədi:", error);
 
-            $callStatus.text(
-                "WebRTC bağlantısı yaradıla bilmədi."
-            );
+            $callStatus.text("WebRTC bağlantısı yaradıla bilmədi.");
 
             return null;
 
@@ -421,43 +377,40 @@ $(document).ready(function () {
 
 
         // ======================================
-        // REMOTE AUDIO TRACK
+        // AUDIO TRACK
         // ======================================
 
         peerConnection.ontrack = function (event) {
 
-            const incomingStream = event.streams[0];
+            if (!remoteAudioElement) {
+                return;
+            }
 
-            if (incomingStream) {
+            if (event.streams && event.streams[0]) {
 
-                remoteAudioElement.srcObject =
-                    incomingStream;
-
-                remoteAudioStream = incomingStream;
+                remoteAudioStream = event.streams[0];
 
             } else if (event.track) {
 
-                remoteAudioStream.addTrack(
-                    event.track
-                );
+                const existingTrack =
+                    remoteAudioStream.getTracks().some(function (track) {
+                        return track.id === event.track.id;
+                    });
 
-                remoteAudioElement.srcObject =
-                    remoteAudioStream;
+                if (!existingTrack) {
+                    remoteAudioStream.addTrack(event.track);
+                }
 
             }
 
+            remoteAudioElement.srcObject = remoteAudioStream;
             remoteAudioElement.muted = !isSpeakerOn;
 
-            remoteAudioElement.play().catch(
-                function (error) {
+            remoteAudioElement.play().catch(function (error) {
 
-                    console.warn(
-                        "Avtomatik səs səsləndirməsi bloklandı:",
-                        error
-                    );
+                console.warn("Səs avtomatik başladılmadı:", error);
 
-                }
-            );
+            });
 
         };
 
@@ -468,11 +421,8 @@ $(document).ready(function () {
 
         peerConnection.onicecandidate = function (event) {
 
-            if (!event.candidate) {
-                return;
-            }
-
             if (
+                !event.candidate ||
                 callState === "idle" ||
                 callState === "ending"
             ) {
@@ -493,17 +443,68 @@ $(document).ready(function () {
         // CONNECTION STATE
         // ======================================
 
-        peerConnection.onconnectionstatechange =
-            function () {
+        peerConnection.onconnectionstatechange = function () {
 
-                if (!peerConnection) {
-                    return;
-                }
+            if (!peerConnection) {
+                return;
+            }
 
-                const state =
-                    peerConnection.connectionState;
+            const state = peerConnection.connectionState;
 
-                if (state === "connected") {
+            if (state === "connected") {
+
+                callState = "active";
+
+                $callStatus.text("Zəng aktivdir");
+
+                showActiveActions();
+
+                startCallTimer();
+
+            } else if (state === "connecting") {
+
+                $callStatus.text("Bağlantı yaradılır...");
+
+            } else if (state === "disconnected") {
+
+                $callStatus.text(
+                    "Bağlantı kəsildi. Yenidən qoşulma gözlənilir..."
+                );
+
+            } else if (state === "failed") {
+
+                $callStatus.text(
+                    "Bağlantı uğursuz oldu. Zəngi bitirib yenidən cəhd edin."
+                );
+
+                stopCallTimer();
+
+            }
+
+        };
+
+
+        // ======================================
+        // ICE CONNECTION STATE
+        // ======================================
+
+        peerConnection.oniceconnectionstatechange = function () {
+
+            if (!peerConnection) {
+                return;
+            }
+
+            const state = peerConnection.iceConnectionState;
+
+            if (
+                state === "connected" ||
+                state === "completed"
+            ) {
+
+                if (
+                    callState !== "idle" &&
+                    callState !== "ending"
+                ) {
 
                     callState = "active";
 
@@ -513,93 +514,19 @@ $(document).ready(function () {
 
                     startCallTimer();
 
-                    return;
-
                 }
 
-                if (state === "connecting") {
+            } else if (state === "failed") {
 
-                    $callStatus.text(
-                        "Bağlantı yaradılır..."
-                    );
+                $callStatus.text(
+                    "Şəbəkə bağlantısı uğursuz oldu."
+                );
 
-                    return;
+                stopCallTimer();
 
-                }
+            }
 
-                if (state === "disconnected") {
-
-                    $callStatus.text(
-                        "Bağlantı kəsildi. Yenidən qoşulma gözlənilir..."
-                    );
-
-                    return;
-
-                }
-
-                if (state === "failed") {
-
-                    $callStatus.text(
-                        "Bağlantı qurulmadı."
-                    );
-
-                    stopCallTimer();
-
-                }
-
-            };
-
-
-        // ======================================
-        // ICE CONNECTION STATE
-        // ======================================
-
-        peerConnection.oniceconnectionstatechange =
-            function () {
-
-                if (!peerConnection) {
-                    return;
-                }
-
-                const state =
-                    peerConnection.iceConnectionState;
-
-                if (
-                    state === "connected" ||
-                    state === "completed"
-                ) {
-
-                    if (
-                        callState !== "ending" &&
-                        callState !== "idle"
-                    ) {
-
-                        callState = "active";
-
-                        $callStatus.text(
-                            "Zəng aktivdir"
-                        );
-
-                        showActiveActions();
-
-                        startCallTimer();
-
-                    }
-
-                }
-
-                if (state === "failed") {
-
-                    $callStatus.text(
-                        "Şəbəkə bağlantısı uğursuz oldu."
-                    );
-
-                    stopCallTimer();
-
-                }
-
-            };
-
+        };
 
         return peerConnection;
 
@@ -607,7 +534,7 @@ $(document).ready(function () {
 
 
     // ==========================================
-    // CREATE AUDIO TRANSCEIVER
+    // ENSURE AUDIO TRANSCEIVER
     // ==========================================
 
     function ensureAudioTransceiver() {
@@ -616,11 +543,8 @@ $(document).ready(function () {
             return null;
         }
 
-        const transceivers =
-            peerConnection.getTransceivers();
-
         let audioTransceiver =
-            transceivers.find(function (transceiver) {
+            peerConnection.getTransceivers().find(function (transceiver) {
 
                 return (
                     transceiver.receiver &&
@@ -632,13 +556,12 @@ $(document).ready(function () {
 
         if (!audioTransceiver) {
 
-            audioTransceiver =
-                peerConnection.addTransceiver(
-                    "audio",
-                    {
-                        direction: "sendrecv"
-                    }
-                );
+            audioTransceiver = peerConnection.addTransceiver(
+                "audio",
+                {
+                    direction: "sendrecv"
+                }
+            );
 
         }
 
@@ -661,12 +584,9 @@ $(document).ready(function () {
 
             ensureAudioTransceiver();
 
-            const offer =
-                await peerConnection.createOffer();
+            const offer = await peerConnection.createOffer();
 
-            await peerConnection.setLocalDescription(
-                offer
-            );
+            await peerConnection.setLocalDescription(offer);
 
             const sent = sendCallSignal(
                 "call_offer",
@@ -681,21 +601,16 @@ $(document).ready(function () {
             if (!sent) {
 
                 $callStatus.text(
-                    "Zəng siqnalı göndərilmədi. Bağlantını yoxlayın."
+                    "Zəng siqnalı göndərilmədi. WebSocket bağlantısını yoxlayın."
                 );
 
             }
 
         } catch (error) {
 
-            console.error(
-                "Zəng təklifi yaradılmadı:",
-                error
-            );
+            console.error("Zəng təklifi yaradılmadı:", error);
 
-            $callStatus.text(
-                "Zəng başlatmaq mümkün olmadı."
-            );
+            $callStatus.text("Zəng başlatmaq mümkün olmadı.");
 
         }
 
@@ -713,29 +628,19 @@ $(document).ready(function () {
             callState !== "incoming" &&
             callState !== "active"
         ) {
-
             return false;
-
         }
 
         if (
             callAudioStream &&
-            callAudioStream.getAudioTracks().some(
-                function (track) {
-
-                    return track.readyState === "live";
-
-                }
-            )
+            callAudioStream.getAudioTracks().some(function (track) {
+                return track.readyState === "live";
+            })
         ) {
 
-            callAudioStream
-                .getAudioTracks()
-                .forEach(function (track) {
-
-                    track.enabled = true;
-
-                });
+            callAudioStream.getAudioTracks().forEach(function (track) {
+                track.enabled = true;
+            });
 
             isMuted = false;
 
@@ -758,27 +663,20 @@ $(document).ready(function () {
 
         }
 
-        const requestId =
-            ++microphoneRequestId;
+        const requestId = ++microphoneRequestId;
 
-        $toggleMuteButton.prop(
-            "disabled",
-            true
-        );
+        $toggleMuteButton.prop("disabled", true);
 
-        $callStatus.text(
-            "Mikrofon aktivləşdirilir..."
-        );
+        $callStatus.text("Mikrofon aktivləşdirilir...");
+
+        let stream = null;
 
         try {
 
-            const stream =
-                await navigator.mediaDevices.getUserMedia(
-                    {
-                        audio: true,
-                        video: false
-                    }
-                );
+            stream = await navigator.mediaDevices.getUserMedia({
+                audio: true,
+                video: false
+            });
 
             if (
                 requestId !== microphoneRequestId ||
@@ -786,86 +684,81 @@ $(document).ready(function () {
                 callState === "ending"
             ) {
 
-                stream.getTracks().forEach(
-                    function (track) {
-
-                        track.stop();
-
-                    }
-                );
+                stream.getTracks().forEach(function (track) {
+                    track.stop();
+                });
 
                 return false;
+
+            }
+
+            const audioTrack = stream.getAudioTracks()[0];
+
+            if (!audioTrack) {
+
+                stream.getTracks().forEach(function (track) {
+                    track.stop();
+                });
+
+                $callStatus.text("Mikrofon audio treki əldə edilmədi.");
+
+                return false;
+
+            }
+
+            if (!peerConnection && !createPeerConnection()) {
+
+                stream.getTracks().forEach(function (track) {
+                    track.stop();
+                });
+
+                return false;
+
+            }
+
+            const transceiver = ensureAudioTransceiver();
+
+            if (!transceiver) {
+
+                stream.getTracks().forEach(function (track) {
+                    track.stop();
+                });
+
+                return false;
+
+            }
+
+            await transceiver.sender.replaceTrack(audioTrack);
+
+            if (
+                requestId !== microphoneRequestId ||
+                callState === "idle" ||
+                callState === "ending"
+            ) {
+
+                stream.getTracks().forEach(function (track) {
+                    track.stop();
+                });
+
+                return false;
+
+            }
+
+            if (callAudioStream) {
+
+                callAudioStream.getTracks().forEach(function (track) {
+                    track.stop();
+                });
 
             }
 
             callAudioStream = stream;
 
-            const audioTrack =
-                stream.getAudioTracks()[0];
-
-            if (!audioTrack) {
-
-                stopMicrophone();
-
-                $callStatus.text(
-                    "Mikrofon audio treki əldə edilmədi."
-                );
-
-                return false;
-
-            }
-
             audioTrack.enabled = true;
-
-            if (!peerConnection) {
-
-                createPeerConnection();
-
-            }
-
-            if (!peerConnection) {
-
-                stopMicrophone();
-
-                return false;
-
-            }
-
-            const transceiver =
-                ensureAudioTransceiver();
-
-            if (!transceiver) {
-
-                stopMicrophone();
-
-                return false;
-
-            }
-
-            await transceiver.sender.replaceTrack(
-                audioTrack
-            );
-
-            if (
-                requestId !== microphoneRequestId ||
-                callState === "idle" ||
-                callState === "ending"
-            ) {
-
-                return false;
-
-            }
 
             isMuted = false;
 
             updateMicrophoneButton();
-
-            /*
-             * Mövcud zəng zamanı yeni mikrofon treki
-             * əlavə edilirsə, bağlantının SDP-si
-             * yenilənməlidir. Bu, ayrıca renegotiation
-             * mərhələsində idarə olunacaq.
-             */
 
             $callStatus.text(
                 callState === "active"
@@ -877,10 +770,15 @@ $(document).ready(function () {
 
         } catch (error) {
 
-            console.error(
-                "Mikrofon xətası:",
-                error
-            );
+            if (stream) {
+
+                stream.getTracks().forEach(function (track) {
+                    track.stop();
+                });
+
+            }
+
+            console.error("Mikrofon xətası:", error);
 
             isMuted = true;
 
@@ -891,25 +789,15 @@ $(document).ready(function () {
                 error.name === "PermissionDeniedError"
             ) {
 
-                $callStatus.text(
-                    "Mikrofon icazəsi verilməyib."
-                );
+                $callStatus.text("Mikrofon icazəsi verilməyib.");
 
-            } else if (
-                error.name === "NotFoundError"
-            ) {
+            } else if (error.name === "NotFoundError") {
 
-                $callStatus.text(
-                    "Mikrofon tapılmadı."
-                );
+                $callStatus.text("Mikrofon tapılmadı.");
 
-            } else if (
-                error.name === "NotReadableError"
-            ) {
+            } else if (error.name === "NotReadableError") {
 
-                $callStatus.text(
-                    "Mikrofon istifadə edilə bilmir."
-                );
+                $callStatus.text("Mikrofon istifadə edilə bilmir.");
 
             } else {
 
@@ -925,10 +813,7 @@ $(document).ready(function () {
 
             if (requestId === microphoneRequestId) {
 
-                $toggleMuteButton.prop(
-                    "disabled",
-                    false
-                );
+                $toggleMuteButton.prop("disabled", false);
 
             }
 
@@ -945,15 +830,32 @@ $(document).ready(function () {
 
         microphoneRequestId++;
 
-        if (callAudioStream) {
+        if (peerConnection) {
 
-            callAudioStream
-                .getTracks()
-                .forEach(function (track) {
+            const transceiver =
+                peerConnection.getTransceivers().find(function (item) {
 
-                    track.stop();
+                    return (
+                        item.sender &&
+                        item.sender.track &&
+                        item.sender.track.kind === "audio"
+                    );
 
                 });
+
+            if (transceiver) {
+
+                transceiver.sender.replaceTrack(null).catch(function () { });
+
+            }
+
+        }
+
+        if (callAudioStream) {
+
+            callAudioStream.getTracks().forEach(function (track) {
+                track.stop();
+            });
 
             callAudioStream = null;
 
@@ -963,7 +865,7 @@ $(document).ready(function () {
 
 
     // ==========================================
-    // ADD PENDING ICE CANDIDATES
+    // FLUSH PENDING ICE CANDIDATES
     // ==========================================
 
     async function flushPendingIceCandidates() {
@@ -972,17 +874,16 @@ $(document).ready(function () {
             !peerConnection ||
             !peerConnection.remoteDescription
         ) {
-
             return;
-
         }
 
         while (
-            pendingIceCandidates.length > 0
+            pendingIceCandidates.length > 0 &&
+            peerConnection &&
+            peerConnection.remoteDescription
         ) {
 
-            const candidate =
-                pendingIceCandidates.shift();
+            const candidate = pendingIceCandidates.shift();
 
             try {
 
@@ -992,10 +893,7 @@ $(document).ready(function () {
 
             } catch (error) {
 
-                console.warn(
-                    "ICE candidate əlavə edilmədi:",
-                    error
-                );
+                console.warn("ICE candidate əlavə edilmədi:", error);
 
             }
 
@@ -1010,23 +908,29 @@ $(document).ready(function () {
 
     async function handleCallOffer(data) {
 
-        const currentUserId =
-            getCurrentUserId();
+        const currentUserId = getCurrentUserId();
 
         if (
             currentUserId &&
             String(data.from_user_id) === currentUserId
         ) {
-
             return;
+        }
 
+        if (
+            !data.description ||
+            data.description.type !== "offer" ||
+            !data.description.sdp
+        ) {
+            return;
         }
 
         if (callState !== "idle") {
 
             sendCallSignal(
                 "call_busy",
-                {}
+                {},
+                data.from_user_id
             );
 
             return;
@@ -1037,10 +941,9 @@ $(document).ready(function () {
 
         isCallInitiator = false;
 
-        const otherUser =
-            window.DMSOtherUser || {};
+        isRemoteDescriptionSet = false;
 
-        updateCallUser();
+        pendingIceCandidates = [];
 
         callState = "incoming";
 
@@ -1051,9 +954,9 @@ $(document).ready(function () {
 
         stopCallTimer();
 
-        $callStatus.text(
-            "Gələn səsli zəng..."
-        );
+        updateCallUser();
+
+        $callStatus.text("Gələn səsli zəng...");
 
         $callDuration
             .text("00:00")
@@ -1072,19 +975,18 @@ $(document).ready(function () {
         updateMicrophoneButton();
         updateSpeakerButton();
 
-        createPeerConnection();
+        if (!createPeerConnection()) {
 
-        if (!peerConnection) {
             resetCall(false);
+
             return;
+
         }
 
         try {
 
             await peerConnection.setRemoteDescription(
-                new RTCSessionDescription(
-                    data.description
-                )
+                new RTCSessionDescription(data.description)
             );
 
             isRemoteDescriptionSet = true;
@@ -1093,14 +995,9 @@ $(document).ready(function () {
 
         } catch (error) {
 
-            console.error(
-                "Gələn zəng təklifi qəbul edilmədi:",
-                error
-            );
+            console.error("Gələn zəng təklifi qəbul edilmədi:", error);
 
-            $callStatus.text(
-                "Gələn zəngin bağlantısı qurulmadı."
-            );
+            $callStatus.text("Gələn zəngin bağlantısı qurulmadı.");
 
         }
 
@@ -1113,38 +1010,22 @@ $(document).ready(function () {
 
     async function acceptCall() {
 
-        if (callState !== "incoming") {
+        if (
+            callState !== "incoming" ||
+            !peerConnection
+        ) {
             return;
         }
 
-        if (!peerConnection) {
-
-            createPeerConnection();
-
-        }
-
-        if (!peerConnection) {
-            resetCall(false);
-            return;
-        }
+        $acceptCallButton.prop("disabled", true);
 
         try {
 
-            $acceptCallButton.prop(
-                "disabled",
-                true
-            );
+            $callStatus.text("Zəngə qoşulunur...");
 
-            $callStatus.text(
-                "Zəngə qoşulunur..."
-            );
+            const answer = await peerConnection.createAnswer();
 
-            const answer =
-                await peerConnection.createAnswer();
-
-            await peerConnection.setLocalDescription(
-                answer
-            );
+            await peerConnection.setLocalDescription(answer);
 
             const sent = sendCallSignal(
                 "call_answer",
@@ -1170,29 +1051,19 @@ $(document).ready(function () {
 
             showActiveActions();
 
-            $callStatus.text(
-                "Qarşı tərəfə qoşulunur..."
-            );
+            $callStatus.text("Qarşı tərəfə qoşulunur...");
 
             await flushPendingIceCandidates();
 
         } catch (error) {
 
-            console.error(
-                "Zəng qəbul edilmədi:",
-                error
-            );
+            console.error("Zəng qəbul edilmədi:", error);
 
-            $callStatus.text(
-                "Zəngi qəbul etmək mümkün olmadı."
-            );
+            $callStatus.text("Zəngi qəbul etmək mümkün olmadı.");
 
         } finally {
 
-            $acceptCallButton.prop(
-                "disabled",
-                false
-            );
+            $acceptCallButton.prop("disabled", false);
 
         }
 
@@ -1208,48 +1079,44 @@ $(document).ready(function () {
         if (
             !peerConnection ||
             !isCallInitiator ||
-            callState === "idle"
+            callState === "idle" ||
+            callState === "ending"
         ) {
-
             return;
-
         }
 
         if (
             String(data.from_user_id) !==
             String(callTargetUserId)
         ) {
-
             return;
+        }
 
+        if (
+            !data.description ||
+            data.description.type !== "answer" ||
+            !data.description.sdp
+        ) {
+            return;
         }
 
         try {
 
             await peerConnection.setRemoteDescription(
-                new RTCSessionDescription(
-                    data.description
-                )
+                new RTCSessionDescription(data.description)
             );
 
             isRemoteDescriptionSet = true;
 
             await flushPendingIceCandidates();
 
-            $callStatus.text(
-                "Qarşı tərəfə qoşulunur..."
-            );
+            $callStatus.text("Qarşı tərəfə qoşulunur...");
 
         } catch (error) {
 
-            console.error(
-                "Zəng cavabı qəbul edilmədi:",
-                error
-            );
+            console.error("Zəng cavabı qəbul edilmədi:", error);
 
-            $callStatus.text(
-                "Zəng bağlantısı qurulmadı."
-            );
+            $callStatus.text("Zəng bağlantısı qurulmadı.");
 
         }
 
@@ -1263,26 +1130,23 @@ $(document).ready(function () {
     async function handleIceCandidate(data) {
 
         if (
-            String(data.from_user_id) !==
-            String(callTargetUserId)
+            !callTargetUserId ||
+            String(data.from_user_id) !== String(callTargetUserId)
         ) {
-
             return;
-
         }
 
-        if (!data.candidate) {
+        if (!data.candidate || typeof data.candidate !== "object") {
             return;
         }
 
         if (
             !peerConnection ||
-            !isRemoteDescriptionSet
+            !isRemoteDescriptionSet ||
+            !peerConnection.remoteDescription
         ) {
 
-            pendingIceCandidates.push(
-                data.candidate
-            );
+            pendingIceCandidates.push(data.candidate);
 
             return;
 
@@ -1291,17 +1155,12 @@ $(document).ready(function () {
         try {
 
             await peerConnection.addIceCandidate(
-                new RTCIceCandidate(
-                    data.candidate
-                )
+                new RTCIceCandidate(data.candidate)
             );
 
         } catch (error) {
 
-            console.warn(
-                "ICE candidate əlavə edilə bilmədi:",
-                error
-            );
+            console.warn("ICE candidate əlavə edilmədi:", error);
 
         }
 
@@ -1309,7 +1168,7 @@ $(document).ready(function () {
 
 
     // ==========================================
-    // HANDLE INCOMING CALL SIGNAL
+    // HANDLE CALL SIGNAL
     // ==========================================
 
     async function handleCallSignal(event) {
@@ -1320,23 +1179,22 @@ $(document).ready(function () {
             return;
         }
 
-        if (
-            data.type !== "call_offer" &&
-            String(data.from_user_id) !==
-            String(callTargetUserId)
-        ) {
+        if (data.type === "call_offer") {
+
+            await handleCallOffer(data);
 
             return;
 
         }
 
+        if (
+            !callTargetUserId ||
+            String(data.from_user_id) !== String(callTargetUserId)
+        ) {
+            return;
+        }
+
         switch (data.type) {
-
-            case "call_offer":
-
-                await handleCallOffer(data);
-
-                break;
 
             case "call_answer":
 
@@ -1352,9 +1210,7 @@ $(document).ready(function () {
 
             case "call_reject":
 
-                $callStatus.text(
-                    "Qarşı tərəf zəngi rədd etdi."
-                );
+                $callStatus.text("Qarşı tərəf zəngi rədd etdi.");
 
                 resetCall(false);
 
@@ -1391,21 +1247,13 @@ $(document).ready(function () {
 
     function rejectCall() {
 
-        if (
-            callState !== "incoming" &&
-            callState !== "calling"
-        ) {
-
+        if (callState !== "incoming") {
             return;
-
         }
 
         if (callTargetUserId) {
 
-            sendCallSignal(
-                "call_reject",
-                {}
-            );
+            sendCallSignal("call_reject", {});
 
         }
 
@@ -1426,10 +1274,7 @@ $(document).ready(function () {
 
         if (callTargetUserId) {
 
-            sendCallSignal(
-                "call_end",
-                {}
-            );
+            sendCallSignal("call_end", {});
 
         }
 
@@ -1449,9 +1294,7 @@ $(document).ready(function () {
             callState !== "calling" &&
             callState !== "incoming"
         ) {
-
             return;
-
         }
 
         if (isMuted) {
@@ -1466,20 +1309,18 @@ $(document).ready(function () {
 
         if (callAudioStream) {
 
-            callAudioStream
-                .getAudioTracks()
-                .forEach(function (track) {
-
-                    track.enabled = false;
-
-                });
+            callAudioStream.getAudioTracks().forEach(function (track) {
+                track.enabled = false;
+            });
 
         }
 
         updateMicrophoneButton();
 
         $callStatus.text(
-            "Mikrofon söndürülüb"
+            callState === "active"
+                ? "Zəng aktivdir — mikrofon söndürülüb"
+                : "Mikrofon söndürülüb"
         );
 
     }
@@ -1496,9 +1337,7 @@ $(document).ready(function () {
             callState !== "calling" &&
             callState !== "incoming"
         ) {
-
             return;
-
         }
 
         isSpeakerOn = !isSpeakerOn;
@@ -1525,34 +1364,26 @@ $(document).ready(function () {
             .prop("hidden", false)
             .show();
 
-        callTimer = setInterval(
-            function () {
+        callTimer = setInterval(function () {
 
-                if (callState !== "active") {
+            if (callState !== "active") {
+                stopCallTimer();
+                return;
+            }
 
-                    stopCallTimer();
+            callSeconds++;
 
-                    return;
+            const minutes = String(
+                Math.floor(callSeconds / 60)
+            ).padStart(2, "0");
 
-                }
+            const seconds = String(
+                callSeconds % 60
+            ).padStart(2, "0");
 
-                callSeconds++;
+            $callDuration.text(minutes + ":" + seconds);
 
-                const minutes = String(
-                    Math.floor(callSeconds / 60)
-                ).padStart(2, "0");
-
-                const seconds = String(
-                    callSeconds % 60
-                ).padStart(2, "0");
-
-                $callDuration.text(
-                    minutes + ":" + seconds
-                );
-
-            },
-            1000
-        );
+        }, 1000);
 
     }
 
@@ -1591,16 +1422,14 @@ $(document).ready(function () {
             callTargetUserId
         ) {
 
-            sendCallSignal(
-                "call_end",
-                {}
-            );
+            sendCallSignal("call_end", {});
 
         }
 
         callState = "ending";
 
         stopCallTimer();
+
         stopMicrophone();
 
         if (peerConnection) {
@@ -1619,6 +1448,7 @@ $(document).ready(function () {
         if (remoteAudioElement) {
 
             remoteAudioElement.pause();
+
             remoteAudioElement.srcObject = null;
 
             remoteAudioElement.remove();
@@ -1634,20 +1464,22 @@ $(document).ready(function () {
         callTargetUserId = null;
 
         isCallInitiator = false;
+
         isRemoteDescriptionSet = false;
 
         isMuted = true;
+
         isSpeakerOn = true;
 
         callSeconds = 0;
 
         updateMicrophoneButton();
+
         updateSpeakerButton();
 
-        $toggleMuteButton.prop(
-            "disabled",
-            false
-        );
+        $toggleMuteButton.prop("disabled", false);
+
+        $acceptCallButton.prop("disabled", false);
 
         $callModal
             .prop("hidden", true)
@@ -1667,14 +1499,9 @@ $(document).ready(function () {
             .prop("hidden", true)
             .hide();
 
-        $callStatus.text(
-            "Zəngə hazırdır"
-        );
+        $callStatus.text("Zəngə hazırdır");
 
-        $("body").css(
-            "overflow",
-            ""
-        );
+        $("body").css("overflow", "");
 
         callState = "idle";
 
@@ -1687,64 +1514,46 @@ $(document).ready(function () {
     // EVENT LISTENERS
     // ==========================================
 
-    $audioCallButton.on(
-        "click",
-        function () {
+    $audioCallButton.on("click", function () {
 
-            openCallModal();
+        openCallModal();
 
-        }
-    );
+    });
 
 
-    $acceptCallButton.on(
-        "click",
-        function () {
+    $acceptCallButton.on("click", function () {
 
-            acceptCall();
+        acceptCall();
 
-        }
-    );
+    });
 
 
-    $rejectCallButton.on(
-        "click",
-        function () {
+    $rejectCallButton.on("click", function () {
 
-            rejectCall();
+        rejectCall();
 
-        }
-    );
+    });
 
 
-    $endCallButton.on(
-        "click",
-        function () {
+    $endCallButton.on("click", function () {
 
-            endCall();
+        endCall();
 
-        }
-    );
+    });
 
 
-    $toggleMuteButton.on(
-        "click",
-        function () {
+    $toggleMuteButton.on("click", function () {
 
-            toggleMute();
+        toggleMute();
 
-        }
-    );
+    });
 
 
-    $toggleSpeakerButton.on(
-        "click",
-        function () {
+    $toggleSpeakerButton.on("click", function () {
 
-            toggleSpeaker();
+        toggleSpeaker();
 
-        }
-    );
+    });
 
 
     // ==========================================
@@ -1779,6 +1588,7 @@ $(document).ready(function () {
         .hide();
 
     updateMicrophoneButton();
+
     updateSpeakerButton();
 
 });
