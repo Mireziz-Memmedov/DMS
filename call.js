@@ -3015,10 +3015,14 @@ $(document).ready(function () {
 
         if (isMuted) {
 
-            await activateMicrophone();
+            const activated = await activateMicrophone();
+
+            if (!activated) {
+                isMuted = true;
+                updateMicrophoneButton();
+            }
 
             return;
-
         }
 
         isMuted = true;
@@ -3027,6 +3031,18 @@ $(document).ready(function () {
 
             callAudioStream.getAudioTracks().forEach(function (track) {
                 track.enabled = false;
+            });
+
+        }
+
+        if (peerConnection) {
+
+            peerConnection.getSenders().forEach(function (sender) {
+
+                if (sender.track && sender.track.kind === "audio") {
+                    sender.track.enabled = false;
+                }
+
             });
 
         }
@@ -3040,6 +3056,7 @@ $(document).ready(function () {
         );
 
     }
+
 
 
     // ==========================================
