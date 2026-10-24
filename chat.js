@@ -1316,6 +1316,8 @@ $(document).ready(function () {
 
     function renderChatUser(otherUser) {
 
+        window.DMSOtherUser = otherUser;
+
         if (!otherUser) {
             return;
         }
@@ -3787,8 +3789,45 @@ $(document).ready(function () {
 
                             if (
                                 !data ||
-                                !data.message
+                                typeof data !== "object"
                             ) {
+
+                                return;
+
+                            }
+
+
+                            const callSignalTypes = [
+                                "call_offer",
+                                "call_answer",
+                                "ice_candidate",
+                                "call_reject",
+                                "call_end",
+                                "call_busy"
+                            ];
+
+
+                            if (
+                                callSignalTypes.includes(
+                                    data.type
+                                )
+                            ) {
+
+                                window.dispatchEvent(
+                                    new CustomEvent(
+                                        "dms:call-signal",
+                                        {
+                                            detail: data
+                                        }
+                                    )
+                                );
+
+                                return;
+
+                            }
+
+
+                            if (!data.message) {
 
                                 return;
 
@@ -4775,4 +4814,54 @@ $(document).ready(function () {
      * initializeChat() çağırır.
      */
 
+    // =========================================================
+    // EXPOSE CHAT WEBSOCKET FOR CALLS
+    // =========================================================
+
+    window.DMSCallSocket = {
+
+        getSocket: function () {
+
+            return socket;
+
+        },
+
+        getConversationId: function () {
+
+            return conversationId;
+
+        },
+
+        getCurrentUser: function () {
+
+            return currentUser;
+
+        },
+
+        sendSignal: function (signal) {
+
+            if (
+                !socket ||
+                socket.readyState !== WebSocket.OPEN
+            ) {
+
+                console.warn(
+                    "Zəng siqnalı göndərilmədi: WebSocket bağlıdır."
+                );
+
+                return false;
+
+            }
+
+            socket.send(
+                JSON.stringify(signal)
+            );
+
+            return true;
+
+        }
+
+    };
+
 });
+
