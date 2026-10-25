@@ -45,10 +45,11 @@ $(document).ready(function () {
     let pendingIceCandidates = [];
 
     let callTargetUserId = null;
+    let callConversationId = null;
+
     let isCallInitiator = false;
     let isRemoteDescriptionSet = false;
     let isEndingCall = false;
-
     let isNegotiating = false;
 
     const iceServers = {
@@ -103,6 +104,21 @@ $(document).ready(function () {
 
 
     // ==========================================
+    // GET CURRENT CONVERSATION ID
+    // ==========================================
+
+    function getCurrentConversationId() {
+
+        const urlParams = new URLSearchParams(
+            window.location.search
+        );
+
+        return urlParams.get("conversation");
+
+    }
+
+
+    // ==========================================
     // SEND CALL SIGNAL
     // ==========================================
 
@@ -112,6 +128,7 @@ $(document).ready(function () {
             !window.DMSCallSocket ||
             typeof window.DMSCallSocket.sendSignal !== "function"
         ) {
+            console.error("Call WebSocket mövcud deyil.");
             return false;
         }
 
@@ -122,12 +139,19 @@ $(document).ready(function () {
             return false;
         }
 
+        if (!callConversationId) {
+            console.error("Zəng üçün conversation_id yoxdur.");
+            return false;
+        }
+
         const signal = Object.assign(
+            {},
+            extraData || {},
             {
                 type: type,
-                to_user_id: Number(recipientId)
-            },
-            extraData || {}
+                to_user_id: Number(recipientId),
+                conversation_id: Number(callConversationId)
+            }
         );
 
         try {
@@ -271,7 +295,6 @@ $(document).ready(function () {
     }
 
 
-
     // ==========================================
     // CREATE WEBRTC CONNECTION
     // ==========================================
@@ -369,7 +392,7 @@ $(document).ready(function () {
             } catch (error) {
 
                 console.warn(
-                    "Səs avtomatik başladılmadı. Telefon brauzerində istifadəçi toxunuşu lazım ola bilər:",
+                    "Audio avtomatik başlamadı:",
                     error
                 );
 
@@ -893,6 +916,16 @@ $(document).ready(function () {
 
         }
 
+        callConversationId = getCurrentConversationId();
+
+        if (!callConversationId) {
+
+            alert("Cari söhbətin ID-si tapılmadı.");
+
+            return;
+
+        }
+
         callTargetUserId = user.id;
 
         isCallInitiator = true;
@@ -940,8 +973,6 @@ $(document).ready(function () {
             return;
 
         }
-
-        // Mikrofonu SDP offer yaradılmamışdan əvvəl qoşuruq.
 
         const microphoneEnabled = await activateMicrophone();
 
@@ -1021,12 +1052,17 @@ $(document).ready(function () {
         if (
             !data.description ||
             data.description.type !== "offer" ||
-            !data.description.sdp
+            !data.description.sdp ||
+            !data.conversation_id
         ) {
             return;
         }
 
         if (callState !== "idle") {
+
+            const previousConversationId = callConversationId;
+
+            callConversationId = data.conversation_id;
 
             sendCallSignal(
                 "call_busy",
@@ -1034,11 +1070,14 @@ $(document).ready(function () {
                 data.from_user_id
             );
 
+            callConversationId = previousConversationId;
+
             return;
 
         }
 
         callTargetUserId = data.from_user_id;
+        callConversationId = data.conversation_id;
 
         isCallInitiator = false;
 
@@ -1056,7 +1095,10 @@ $(document).ready(function () {
 
         stopCallTimer();
 
-        updateCallUser();
+        // Gələn zəngdə zəng edənin adı ayrıca server məlumatı ilə
+        // əlavə edilməyibsə, burada ümumi ad göstərilir.
+        $callUserName.text("Gələn zəng");
+        $callUserAvatar.find("span").text("U");
 
         $callStatus.text("Gələn səsli zəng...");
 
@@ -1125,8 +1167,6 @@ $(document).ready(function () {
         try {
 
             $callStatus.text("Mikrofon aktivləşdirilir...");
-
-            // Mikrofonu cavab yaradılmamışdan əvvəl qoşuruq.
 
             const microphoneEnabled = await activateMicrophone();
 
@@ -1316,7 +1356,8 @@ $(document).ready(function () {
 
         if (
             !callTargetUserId ||
-            String(data.from_user_id) !== String(callTargetUserId)
+            String(data.from_user_id) !== String(callTargetUserId) ||
+            String(data.conversation_id) !== String(callConversationId)
         ) {
             return;
         }
@@ -1425,11 +1466,15 @@ $(document).ready(function () {
             const activated = await activateMicrophone();
 
             if (!activated) {
+
                 isMuted = true;
+
                 updateMicrophoneButton();
+
             }
 
             return;
+
         }
 
         isMuted = true;
@@ -1463,7 +1508,6 @@ $(document).ready(function () {
         );
 
     }
-
 
 
     // ==========================================
@@ -1623,6 +1667,7 @@ $(document).ready(function () {
         pendingIceCandidates = [];
 
         callTargetUserId = null;
+        callConversationId = null;
 
         isCallInitiator = false;
 

@@ -3797,34 +3797,34 @@ $(document).ready(function () {
                             }
 
 
-                            const callSignalTypes = [
-                                "call_offer",
-                                "call_answer",
-                                "ice_candidate",
-                                "call_reject",
-                                "call_end",
-                                "call_busy"
-                            ];
+                            // const callSignalTypes = [
+                            //     "call_offer",
+                            //     "call_answer",
+                            //     "ice_candidate",
+                            //     "call_reject",
+                            //     "call_end",
+                            //     "call_busy"
+                            // ];
 
 
-                            if (
-                                callSignalTypes.includes(
-                                    data.type
-                                )
-                            ) {
+                            // if (
+                            //     callSignalTypes.includes(
+                            //         data.type
+                            //     )
+                            // ) {
 
-                                window.dispatchEvent(
-                                    new CustomEvent(
-                                        "dms:call-signal",
-                                        {
-                                            detail: data
-                                        }
-                                    )
-                                );
+                            //     window.dispatchEvent(
+                            //         new CustomEvent(
+                            //             "dms:call-signal",
+                            //             {
+                            //                 detail: data
+                            //             }
+                            //         )
+                            //     );
 
-                                return;
+                            //     return;
 
-                            }
+                            // }
 
 
                             if (!data.message) {
@@ -4818,50 +4818,50 @@ $(document).ready(function () {
     // EXPOSE CHAT WEBSOCKET FOR CALLS
     // =========================================================
 
-    window.DMSCallSocket = {
+    // window.DMSCallSocket = {
 
-        getSocket: function () {
+    //     getSocket: function () {
 
-            return socket;
+    //         return socket;
 
-        },
+    //     },
 
-        getConversationId: function () {
+    //     getConversationId: function () {
 
-            return conversationId;
+    //         return conversationId;
 
-        },
+    //     },
 
-        getCurrentUser: function () {
+    //     getCurrentUser: function () {
 
-            return currentUser;
+    //         return currentUser;
 
-        },
+    //     },
 
-        sendSignal: function (signal) {
+    //     sendSignal: function (signal) {
 
-            if (
-                !socket ||
-                socket.readyState !== WebSocket.OPEN
-            ) {
+    //         if (
+    //             !socket ||
+    //             socket.readyState !== WebSocket.OPEN
+    //         ) {
 
-                console.warn(
-                    "Zəng siqnalı göndərilmədi: WebSocket bağlıdır."
-                );
+    //             console.warn(
+    //                 "Zəng siqnalı göndərilmədi: WebSocket bağlıdır."
+    //             );
 
-                return false;
+    //             return false;
 
-            }
+    //         }
 
-            socket.send(
-                JSON.stringify(signal)
-            );
+    //         socket.send(
+    //             JSON.stringify(signal)
+    //         );
 
-            return true;
+    //         return true;
 
-        }
+    //     }
 
-    };
+    // };
 
 });
 
