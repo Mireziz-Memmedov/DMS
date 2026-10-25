@@ -19,6 +19,8 @@
     <script src="translation.js" defer></script>
     <script src="dark-mode.js" defer></script>
     <script src="chats.js" defer></script>
+    <script src="call-socket.js" defer></script>
+    <script src="call.js" defer></script>
 </head>
 
 <body>
@@ -592,6 +594,62 @@
         </nav>
 
     </main>
+
+    <!-- =========================
+         AUDIO CALL MODAL
+    ========================== -->
+
+    <section class="call-modal" id="callModal" role="dialog" aria-modal="true" aria-labelledby="callUserName"
+        aria-hidden="true" hidden>
+
+        <div class="call-window">
+
+            <div class="call-user-avatar" id="callUserAvatar">
+                <span>U</span>
+            </div>
+
+            <div class="call-user-info">
+                <h2 id="callUserName"></h2>
+                <p id="callStatus" aria-live="polite"></p>
+                <span id="callDuration"></span>
+            </div>
+
+            <div class="call-incoming-actions" id="callIncomingActions" hidden>
+
+                <button class="call-action-button call-reject-button" id="rejectCallButton" type="button"
+                    aria-label="Zəngi rədd et">
+                    <i class="fa-solid fa-phone-slash"></i>
+                </button>
+
+                <button class="call-action-button call-accept-button" id="acceptCallButton" type="button"
+                    aria-label="Zəngi qəbul et">
+                    <i class="fa-solid fa-phone"></i>
+                </button>
+
+            </div>
+
+            <div class="call-active-actions" id="callActiveActions" hidden>
+
+                <button class="call-action-button" id="toggleMuteButton" type="button" aria-label="Mikrofonu aktiv et"
+                    aria-pressed="true">
+                    <i class="fa-solid fa-microphone-slash"></i>
+                </button>
+
+                <button class="call-action-button" id="toggleSpeakerButton" type="button"
+                    aria-label="Səs çıxışını dəyiş" aria-pressed="false">
+                    <i class="fa-solid fa-volume-high"></i>
+                </button>
+
+                <button class="call-action-button call-reject-button" id="endCallButton" type="button"
+                    aria-label="Zəngi bitir">
+                    <i class="fa-solid fa-phone"></i>
+                </button>
+
+            </div>
+
+        </div>
+
+    </section>
 
 </body>
 
