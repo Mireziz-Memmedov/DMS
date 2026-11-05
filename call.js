@@ -52,10 +52,38 @@ $(document).ready(function () {
     let isEndingCall = false;
     let isNegotiating = false;
 
+    // const iceServers = {
+    //     iceServers: [
+    //         {
+    //             urls: "stun:stun.l.google.com:19302"
+    //         }
+    //     ]
+    // };
+
     const iceServers = {
         iceServers: [
             {
-                urls: "stun:stun.l.google.com:19302"
+                urls: "stun:stun.relay.metered.ca:80"
+            },
+            {
+                urls: "turn:middle-east.relay.metered.ca:80",
+                username: "22e964ddf1698d218c3e3a47",
+                credential: "WS/apdJKbgQh6krZ"
+            },
+            {
+                urls: "turn:middle-east.relay.metered.ca:80?transport=tcp",
+                username: "22e964ddf1698d218c3e3a47",
+                credential: "WS/apdJKbgQh6krZ"
+            },
+            {
+                urls: "turn:middle-east.relay.metered.ca:443",
+                username: "22e964ddf1698d218c3e3a47",
+                credential: "WS/apdJKbgQh6krZ"
+            },
+            {
+                urls: "turns:middle-east.relay.metered.ca:443?transport=tcp",
+                username: "22e964ddf1698d218c3e3a47",
+                credential: "WS/apdJKbgQh6krZ"
             }
         ]
     };
