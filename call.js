@@ -3844,8 +3844,8 @@ $(document).ready(function () {
 
             $callStatus.text(
                 isExternalMicrophone
-                    ? "Xarici mikrofon aktivdir"
-                    : "Daxili mikrofon aktivdir"
+                    ? "Daxili mikrofon aktivdir"
+                    : "Xarici mikrofon aktivdir"
             );
 
         } catch (error) {
