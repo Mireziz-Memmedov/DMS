@@ -1874,6 +1874,9 @@ $(document).ready(function () {
     let currentMicrophoneDeviceId = null;
     let alternateMicrophoneDeviceId = null;
 
+    let defaultMicrophoneLabel = "";
+    let currentMicrophoneLabel = "";
+
     let isExternalMicrophone = false;
     let isSwitchingMicrophone = false;
 
@@ -1929,6 +1932,112 @@ $(document).ready(function () {
             }
         ]
     };
+
+
+    // ==========================================
+    // MICROPHONE HELPERS
+    // ==========================================
+
+    function isExternalMicrophoneLabel(label) {
+
+        return /(bluetooth|headset|headphone|airpods|earbuds|usb|wired|hands.?free|external|qulaqlıq)/i
+            .test(label || "");
+
+    }
+
+
+    function isInternalMicrophoneLabel(label) {
+
+        return /(built.?in|internal|microphone array|array|iphone|ipad|macbook|internal microphone|daxili)/i
+            .test(label || "");
+
+    }
+
+
+    function getPhysicalMicrophones(devices) {
+
+        return devices.filter(function (device) {
+
+            return (
+                device.kind === "audioinput" &&
+                device.deviceId &&
+                device.deviceId !== "default" &&
+                device.deviceId !== "communications"
+            );
+
+        });
+
+    }
+
+
+    function getMicrophoneType(device) {
+
+        if (!device) {
+            return "unknown";
+        }
+
+        if (isExternalMicrophoneLabel(device.label)) {
+            return "external";
+        }
+
+        if (isInternalMicrophoneLabel(device.label)) {
+            return "internal";
+        }
+
+        return "unknown";
+
+    }
+
+
+    async function getAvailableMicrophones() {
+
+        if (
+            !navigator.mediaDevices ||
+            !navigator.mediaDevices.enumerateDevices
+        ) {
+            return [];
+        }
+
+        const devices = await navigator.mediaDevices.enumerateDevices();
+
+        return getPhysicalMicrophones(devices);
+
+    }
+
+
+    function getAudioTransceiver() {
+
+        if (!peerConnection) {
+            return null;
+        }
+
+        return peerConnection.getTransceivers().find(function (transceiver) {
+
+            return (
+                transceiver.sender &&
+                transceiver.receiver &&
+                transceiver.receiver.track &&
+                transceiver.receiver.track.kind === "audio"
+            );
+
+        }) || null;
+
+    }
+
+
+    function getMicrophoneDeviceById(devices, deviceId) {
+
+        if (!deviceId) {
+            return null;
+        }
+
+        return devices.find(function (device) {
+
+            return device.deviceId === deviceId;
+
+        }) || null;
+
+    }
 
 
     // ==========================================
@@ -2078,7 +2187,7 @@ $(document).ready(function () {
 
 
     // ==========================================
-    // SPEAKER BUTTON
+    // MICROPHONE SWITCH BUTTON
     // ==========================================
 
     function updateSpeakerButton() {
@@ -2095,8 +2204,8 @@ $(document).ready(function () {
 
         $toggleSpeakerButton
             .find("i")
-            .toggleClass("fa-volume-high", !isExternalMicrophone)
-            .toggleClass("fa-volume-xmark", isExternalMicrophone);
+            .toggleClass("fa-microphone-lines", !isExternalMicrophone)
+            .toggleClass("fa-headset", isExternalMicrophone);
 
     }
 
@@ -2200,10 +2309,6 @@ $(document).ready(function () {
         remoteAudioElement.srcObject = remoteAudioStream;
 
 
-        // ======================================
-        // AUDIO TRACK
-        // ======================================
-
         peerConnection.ontrack = async function (event) {
 
             if (!remoteAudioElement || !event.track) {
@@ -2268,10 +2373,6 @@ $(document).ready(function () {
         };
 
 
-        // ======================================
-        // ICE CANDIDATE
-        // ======================================
-
         peerConnection.onicecandidate = function (event) {
 
             if (
@@ -2291,10 +2392,6 @@ $(document).ready(function () {
 
         };
 
-
-        // ======================================
-        // CONNECTION STATE
-        // ======================================
 
         peerConnection.onconnectionstatechange = function () {
 
@@ -2342,10 +2439,6 @@ $(document).ready(function () {
 
         };
 
-
-        // ======================================
-        // ICE CONNECTION STATE
-        // ======================================
 
         peerConnection.oniceconnectionstatechange = function () {
 
@@ -2457,21 +2550,18 @@ $(document).ready(function () {
             })
         ) {
 
-            callAudioStream.getAudioTracks().forEach(function (track) {
-                track.enabled = true;
-            });
+            const existingTrack = callAudioStream.getAudioTracks()[0];
+
+            existingTrack.enabled = true;
 
             const existingTransceiver = ensureAudioTransceiver();
 
             if (
                 existingTransceiver &&
-                existingTransceiver.sender.track !==
-                callAudioStream.getAudioTracks()[0]
+                existingTransceiver.sender.track !== existingTrack
             ) {
 
-                await existingTransceiver.sender.replaceTrack(
-                    callAudioStream.getAudioTracks()[0]
-                );
+                await existingTransceiver.sender.replaceTrack(existingTrack);
 
             }
 
@@ -2591,19 +2681,68 @@ $(document).ready(function () {
 
             callAudioStream = stream;
 
-            // İlkin mikrofonu standart mikrofon kimi yadda saxla.
             currentMicrophoneDeviceId =
                 audioTrack.getSettings().deviceId || null;
 
+            currentMicrophoneLabel = audioTrack.label || "";
+
+            // İlkin seçilmiş mikrofonu yadda saxla.
+
             if (!defaultMicrophoneDeviceId) {
 
-                defaultMicrophoneDeviceId = currentMicrophoneDeviceId;
+                defaultMicrophoneDeviceId =
+                    currentMicrophoneDeviceId;
+
+                defaultMicrophoneLabel =
+                    currentMicrophoneLabel;
+
+            }
+
+            // Mikrofonun növünü müəyyən et.
+
+            const microphoneType = getMicrophoneType({
+                deviceId: currentMicrophoneDeviceId,
+                label: currentMicrophoneLabel
+            });
+
+            isExternalMicrophone =
+                microphoneType === "external";
+
+            // Brauzerin təqdim etdiyi cihazları yoxla.
+
+            try {
+
+                const devices = await getAvailableMicrophones();
+
+                const currentDevice = getMicrophoneDeviceById(
+                    devices,
+                    currentMicrophoneDeviceId
+                );
+
+                if (currentDevice) {
+
+                    currentMicrophoneLabel = currentDevice.label || currentMicrophoneLabel;
+
+                }
+
+                if (!defaultMicrophoneLabel) {
+                    defaultMicrophoneLabel = currentMicrophoneLabel;
+                }
+
+            } catch (deviceError) {
+
+                console.warn(
+                    "Mikrofon siyahısı əldə edilmədi:",
+                    deviceError
+                );
 
             }
 
             isMuted = false;
 
             updateMicrophoneButton();
+
+            updateSpeakerButton();
 
             return true;
 
@@ -2667,28 +2806,13 @@ $(document).ready(function () {
 
         microphoneRequestId++;
 
-        if (peerConnection) {
+        const transceiver = getAudioTransceiver();
 
-            const transceiver = peerConnection
-                .getTransceivers()
-                .find(function (item) {
+        if (transceiver) {
 
-                    return (
-                        item.sender &&
-                        item.receiver &&
-                        item.receiver.track &&
-                        item.receiver.track.kind === "audio"
-                    );
-
-                });
-
-            if (transceiver) {
-
-                transceiver.sender.replaceTrack(null).catch(function (error) {
-                    console.warn("Mikrofon treki ayrılmadı:", error);
-                });
-
-            }
+            transceiver.sender.replaceTrack(null).catch(function (error) {
+                console.warn("Mikrofon treki ayrılmadı:", error);
+            });
 
         }
 
@@ -2814,6 +2938,10 @@ $(document).ready(function () {
         defaultMicrophoneDeviceId = null;
         currentMicrophoneDeviceId = null;
         alternateMicrophoneDeviceId = null;
+
+        defaultMicrophoneLabel = "";
+        currentMicrophoneLabel = "";
+
         isExternalMicrophone = false;
         isSwitchingMicrophone = false;
 
@@ -2969,15 +3097,16 @@ $(document).ready(function () {
         defaultMicrophoneDeviceId = null;
         currentMicrophoneDeviceId = null;
         alternateMicrophoneDeviceId = null;
+
+        defaultMicrophoneLabel = "";
+        currentMicrophoneLabel = "";
+
         isExternalMicrophone = false;
         isSwitchingMicrophone = false;
 
         callSeconds = 0;
 
         stopCallTimer();
-
-        // Gələn zəngdə zəng edənin adı ayrıca server məlumatı ilə
-        // əlavə edilməyibsə, burada ümumi ad göstərilir.
 
         $callUserName.text("Gələn zəng");
         $callUserAvatar.find("span").text("U");
@@ -3420,7 +3549,7 @@ $(document).ready(function () {
         ) {
 
             $callStatus.text(
-                "Mikrofon cihazlarını dəyişmək mümkün deyil."
+                "Bu brauzerdə mikrofon seçimi dəstəklənmir."
             );
 
             return;
@@ -3437,101 +3566,162 @@ $(document).ready(function () {
 
         try {
 
-            const devices = await navigator.mediaDevices.enumerateDevices();
+            // İcazə verildikdən sonra brauzerin təqdim etdiyi
+            // fiziki mikrofonların siyahısını alırıq.
 
-            const microphones = devices.filter(function (device) {
-
-                return (
-                    device.kind === "audioinput" &&
-                    device.deviceId
-                );
-
-            });
+            const microphones = await getAvailableMicrophones();
 
             if (microphones.length < 2) {
 
                 $callStatus.text(
-                    "Alternativ mikrofon tapılmadı."
+                    "Brauzer alternativ mikrofon göstərmir."
                 );
 
                 return;
 
             }
 
-            // Standart mikrofonun ID-si məlum deyilsə,
-            // cari mikrofonu standart kimi qəbul et.
+            const currentTrack = callAudioStream.getAudioTracks()[0];
+
+            if (!currentTrack || currentTrack.readyState !== "live") {
+
+                $callStatus.text("Aktiv mikrofon tapılmadı.");
+
+                return;
+
+            }
+
+            // Cari mikrofonun ID və adını yenilə.
+
+            currentMicrophoneDeviceId =
+                currentTrack.getSettings().deviceId ||
+                currentMicrophoneDeviceId;
+
+            currentMicrophoneLabel =
+                currentTrack.label ||
+                currentMicrophoneLabel;
+
+            // İlkin mikrofonun ID-si məlum deyilsə,
+            // cari mikrofonu ilkin mikrofon kimi saxla.
 
             if (!defaultMicrophoneDeviceId) {
 
                 defaultMicrophoneDeviceId =
                     currentMicrophoneDeviceId;
 
+                defaultMicrophoneLabel =
+                    currentMicrophoneLabel;
+
             }
 
-            // Xarici mikrofona keçid.
+            const currentDevice = getMicrophoneDeviceById(
+                microphones,
+                currentMicrophoneDeviceId
+            );
 
-            if (!isExternalMicrophone) {
+            const currentLabel = currentDevice
+                ? currentDevice.label
+                : currentMicrophoneLabel;
 
-                let alternateDevice = microphones.find(function (device) {
+            const currentType = getMicrophoneType({
+                deviceId: currentMicrophoneDeviceId,
+                label: currentLabel
+            });
+
+            let targetDevice = null;
+
+            // Xarici mikrofondadırsa daxili mikrofonu axtar.
+
+            if (currentType === "external") {
+
+                targetDevice = microphones.find(function (device) {
 
                     return (
-                        device.deviceId !== defaultMicrophoneDeviceId
+                        device.deviceId !== currentMicrophoneDeviceId &&
+                        getMicrophoneType(device) === "internal"
                     );
 
                 });
 
-                if (!alternateDevice) {
+            }
 
-                    $callStatus.text(
-                        "Alternativ mikrofon tapılmadı."
+            // Daxili mikrofondadırsa xarici mikrofonu axtar.
+
+            if (
+                !targetDevice &&
+                currentType === "internal"
+            ) {
+
+                targetDevice = microphones.find(function (device) {
+
+                    return (
+                        device.deviceId !== currentMicrophoneDeviceId &&
+                        getMicrophoneType(device) === "external"
                     );
 
-                    return;
-
-                }
-
-                alternateMicrophoneDeviceId =
-                    alternateDevice.deviceId;
+                });
 
             }
 
-            // Daxili mikrofona geri qayıdış.
+            // Cihaz adından növ müəyyən etmək mümkün olmadıqda
+            // başqa fiziki mikrofonu seç.
 
-            let targetDeviceId;
+            if (!targetDevice) {
 
-            if (isExternalMicrophone) {
+                targetDevice = microphones.find(function (device) {
 
-                targetDeviceId = defaultMicrophoneDeviceId;
+                    return (
+                        device.deviceId !== currentMicrophoneDeviceId
+                    );
 
-            } else {
-
-                targetDeviceId = alternateMicrophoneDeviceId;
+                });
 
             }
 
-            const targetDeviceExists = microphones.some(function (device) {
+            // Əvvəlki mikrofon siyahıda yoxdursa,
+            // ilkin mikrofonu tapmağa çalış.
 
-                return device.deviceId === targetDeviceId;
+            if (
+                !targetDevice &&
+                defaultMicrophoneDeviceId
+            ) {
 
-            });
+                targetDevice = getMicrophoneDeviceById(
+                    microphones,
+                    defaultMicrophoneDeviceId
+                );
 
-            if (!targetDeviceExists) {
+            }
+
+            if (!targetDevice) {
 
                 $callStatus.text(
-                    "Seçilmiş mikrofon artıq mövcud deyil."
+                    "Daxili və ya xarici mikrofon tapılmadı."
                 );
 
                 return;
 
             }
 
-            // Yeni mikrofondan audio əldə et.
+            if (
+                targetDevice.deviceId === currentMicrophoneDeviceId
+            ) {
+
+                $callStatus.text(
+                    "Hazırda seçilmiş mikrofon artıq aktivdir."
+                );
+
+                return;
+
+            }
+
+            // Yeni mikrofonu aç.
 
             newStream = await navigator.mediaDevices.getUserMedia({
 
                 audio: {
                     deviceId: {
-                        exact: targetDeviceId
+                        exact: targetDevice.deviceId
                     },
                     echoCancellation: true,
                     noiseSuppression: true,
@@ -3568,34 +3758,27 @@ $(document).ready(function () {
 
             }
 
-            // Mute vəziyyətini qoruyuruq.
+            // Mikrofonun mute vəziyyətini saxla.
 
             newAudioTrack.enabled = !isMuted;
 
-            // Mövcud WebRTC audio sender-i tap.
+            // Mövcud audio transceiver-in sender-ini tap.
 
-            const audioSender = peerConnection
-                .getSenders()
-                .find(function (sender) {
+            const audioTransceiver = getAudioTransceiver();
 
-                    return (
-                        sender.track &&
-                        sender.track.kind === "audio"
-                    );
-
-                });
-
-            if (!audioSender) {
+            if (!audioTransceiver) {
 
                 throw new Error(
-                    "WebRTC audio sender tapılmadı."
+                    "WebRTC audio transceiver tapılmadı."
                 );
 
             }
 
-            // WebRTC bağlantısını pozmadan mikrofonu dəyiş.
+            // Aktiv zəngi kəsmədən mikrofonu dəyiş.
 
-            await audioSender.replaceTrack(newAudioTrack);
+            await audioTransceiver.sender.replaceTrack(
+                newAudioTrack
+            );
 
             if (
                 callState === "idle" ||
@@ -3613,7 +3796,8 @@ $(document).ready(function () {
 
             }
 
-            // Köhnə mikrofonu bağla.
+            // Yeni mikrofon uğurla qoşuldu.
+            // İndi köhnə mikrofonu bağlamaq olar.
 
             const oldStream = callAudioStream;
 
@@ -3623,21 +3807,44 @@ $(document).ready(function () {
 
             currentMicrophoneDeviceId =
                 newAudioTrack.getSettings().deviceId ||
-                targetDeviceId;
+                targetDevice.deviceId;
+
+            currentMicrophoneLabel =
+                newAudioTrack.label ||
+                targetDevice.label ||
+                "";
+
+            alternateMicrophoneDeviceId =
+                currentMicrophoneDeviceId;
+
+            const newType = getMicrophoneType({
+                deviceId: currentMicrophoneDeviceId,
+                label: currentMicrophoneLabel
+            });
 
             isExternalMicrophone =
-                currentMicrophoneDeviceId !== defaultMicrophoneDeviceId;
+                newType === "external" ||
+                (
+                    newType === "unknown" &&
+                    currentMicrophoneDeviceId !== defaultMicrophoneDeviceId
+                );
 
-            oldStream.getTracks().forEach(function (track) {
-                track.stop();
-            });
+            if (oldStream) {
+
+                oldStream.getTracks().forEach(function (track) {
+                    track.stop();
+                });
+
+            }
 
             updateSpeakerButton();
 
+            updateMicrophoneButton();
+
             $callStatus.text(
                 isExternalMicrophone
-                    ? "Alternativ mikrofon aktivdir"
-                    : "Standart mikrofon aktivdir"
+                    ? "Xarici mikrofon aktivdir"
+                    : "Daxili mikrofon aktivdir"
             );
 
         } catch (error) {
@@ -3655,11 +3862,31 @@ $(document).ready(function () {
 
             }
 
-            $callStatus.text(
-                error.name === "NotAllowedError"
-                    ? "Mikrofon icazəsi verilməyib."
-                    : "Mikrofonu dəyişmək mümkün olmadı."
-            );
+            if (error.name === "NotAllowedError") {
+
+                $callStatus.text(
+                    "Mikrofon icazəsi verilməyib."
+                );
+
+            } else if (error.name === "NotFoundError") {
+
+                $callStatus.text(
+                    "Seçilmiş mikrofon tapılmadı."
+                );
+
+            } else if (error.name === "NotReadableError") {
+
+                $callStatus.text(
+                    "Mikrofon hazırda istifadə edilə bilmir."
+                );
+
+            } else {
+
+                $callStatus.text(
+                    "Mikrofonu dəyişmək mümkün olmadı."
+                );
+
+            }
 
         } finally {
 
@@ -3803,6 +4030,9 @@ $(document).ready(function () {
         defaultMicrophoneDeviceId = null;
         currentMicrophoneDeviceId = null;
         alternateMicrophoneDeviceId = null;
+
+        defaultMicrophoneLabel = "";
+        currentMicrophoneLabel = "";
 
         isExternalMicrophone = false;
         isSwitchingMicrophone = false;
