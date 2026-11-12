@@ -63,6 +63,41 @@ $(document).ready(function () {
 
 
     // ==========================================
+    // CALL AUDIO MODE
+    // ==========================================
+
+    function setCallAudioMode() {
+
+        try {
+
+            if ("audioSession" in navigator) {
+
+                navigator.audioSession.type = "play-and-record";
+
+                console.log("Audio rejimi: play-and-record");
+
+                return true;
+
+            }
+
+            console.warn(
+                "Bu brauzer Audio Session API dəstəkləmir."
+            );
+
+            return false;
+
+        } catch (error) {
+
+            console.error("Audio rejimi dəyişdirilmədi:", error);
+
+            return false;
+
+        }
+
+    }
+
+
+    // ==========================================
     // ICE SERVERS
     // ==========================================
 
@@ -507,6 +542,7 @@ $(document).ready(function () {
             event.track.onunmute = async function () {
 
                 try {
+                    setCallAudioMode();
                     await remoteAudioElement.play();
                 } catch (error) {
                     console.warn("Audio başladılmadı:", error);
@@ -515,6 +551,7 @@ $(document).ready(function () {
             };
 
             try {
+                setCallAudioMode();
 
                 await remoteAudioElement.play();
 
@@ -1094,6 +1131,8 @@ $(document).ready(function () {
 
         callState = "calling";
 
+        setCallAudioMode();
+
         isMuted = true;
 
         defaultMicrophoneDeviceId = null;
@@ -1333,6 +1372,8 @@ $(document).ready(function () {
         ) {
             return;
         }
+
+        setCallAudioMode();
 
         $acceptCallButton.prop("disabled", true);
 
