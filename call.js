@@ -3822,12 +3822,13 @@ $(document).ready(function () {
                 label: currentMicrophoneLabel
             });
 
-            isExternalMicrophone =
-                newType === "external" ||
-                (
-                    newType === "unknown" &&
-                    currentMicrophoneDeviceId !== defaultMicrophoneDeviceId
-                );
+            if (newType === "external") {
+                isExternalMicrophone = true;
+            } else if (newType === "internal") {
+                isExternalMicrophone = false;
+            } else {
+                isExternalMicrophone = !isExternalMicrophone;
+            }
 
             if (oldStream) {
 
