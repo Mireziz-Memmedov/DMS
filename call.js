@@ -2198,14 +2198,14 @@ $(document).ready(function () {
             .attr(
                 "aria-label",
                 isExternalMicrophone
-                    ? "Daxili mikrofona keç"
-                    : "Xarici mikrofona keç"
+                    ? "Daxili dinamik"
+                    : "Xarici dinamik"
             );
 
         $toggleSpeakerButton
             .find("i")
-            .toggleClass("fa-microphone-lines", !isExternalMicrophone)
-            .toggleClass("fa-headset", isExternalMicrophone);
+            .toggleClass("fa-volume-high", isExternalMicrophone)
+            .toggleClass("fa-volume-xmark", !isExternalMicrophone);
 
     }
 
