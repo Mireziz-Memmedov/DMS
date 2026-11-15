@@ -637,6 +637,12 @@ $(document).ready(function () {
                 content:
                     message.content || "",
 
+                message_type:
+                    message.message_type || "text",
+
+                call_duration:
+                    message.call_duration ?? null,
+
                 client_id:
                     message.client_id
                         ? String(message.client_id)
@@ -1729,6 +1735,21 @@ $(document).ready(function () {
                 ? "sent"
                 : "received";
 
+        const isCall =
+            message.message_type === "call";
+
+        const callDuration =
+            Number(message.call_duration) || 0;
+
+        const minutes =
+            Math.floor(callDuration / 60);
+
+        const seconds =
+            callDuration % 60;
+
+        const formattedDuration =
+            `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+
 
         const optimisticClass =
             message.optimistic
@@ -1780,11 +1801,30 @@ $(document).ready(function () {
             );
 
 
-        $message
-            .find("p")
-            .text(
-                message.content || ""
-            );
+        if (isCall) {
+
+            $message.addClass("call-message");
+
+            $message
+                .find("p")
+                .text("Səsli zəng");
+
+            $message
+                .find(".message-bubble")
+                .prepend(`
+                    <div class="call-message-info">
+                        <i class="fa-solid fa-phone"></i>
+                        <strong>${formattedDuration}</strong>
+                    </div>
+                `);
+
+        } else {
+
+            $message
+                .find("p")
+                .text(message.content || "");
+
+        }
 
 
         $message
