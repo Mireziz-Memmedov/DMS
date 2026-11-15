@@ -44,6 +44,9 @@ $(document).ready(function () {
     let callTimer = null;
     let callSeconds = 0;
 
+    let callStartedAt = null;
+    let callHistorySaved = false;
+
     let callAudioStream = null;
     let microphoneRequestId = 0;
 
@@ -1125,6 +1128,9 @@ $(document).ready(function () {
 
         isCallInitiator = true;
 
+        callStartedAt = null;
+        callHistorySaved = false;
+
         isRemoteDescriptionSet = false;
 
         pendingIceCandidates = [];
@@ -1285,6 +1291,9 @@ $(document).ready(function () {
         callConversationId = data.conversation_id;
 
         isCallInitiator = false;
+
+        callStartedAt = null;
+        callHistorySaved = false;
 
         isRemoteDescriptionSet = false;
 
@@ -2114,6 +2123,10 @@ $(document).ready(function () {
 
         callSeconds = 0;
 
+        if (!callStartedAt) {
+            callStartedAt = Date.now();
+        }
+
         $callDuration
             .text("00:00")
             .prop("hidden", false)
@@ -2162,6 +2175,55 @@ $(document).ready(function () {
 
     }
 
+    function saveCallHistory() {
+
+        if (
+            !isCallInitiator ||
+            !callStartedAt ||
+            callHistorySaved ||
+            !callConversationId
+        ) {
+            return;
+        }
+
+        const duration = Math.floor(
+            (Date.now() - callStartedAt) / 1000
+        );
+
+        if (duration <= 0) {
+            return;
+        }
+
+        callHistorySaved = true;
+
+        apiRequest({
+            url: API_URL + "/api/conversations/" +
+                callConversationId + "/calls/create/",
+
+            type: "POST",
+            contentType: "application/json",
+
+            data: JSON.stringify({
+                call_duration: duration
+            })
+
+        })
+            .done(function (response) {
+
+                console.log("Zəng tarixçəsi yadda saxlanıldı:", response);
+
+            })
+            .fail(function (xhr) {
+
+                console.error(
+                    "Zəng tarixçəsi yadda saxlanılmadı:",
+                    xhr.responseText
+                );
+
+            });
+
+    }
+
 
     // ==========================================
     // RESET CALL
@@ -2172,6 +2234,8 @@ $(document).ready(function () {
         if (isEndingCall) {
             return;
         }
+
+        saveCallHistory();
 
         isEndingCall = true;
 
@@ -2241,6 +2305,9 @@ $(document).ready(function () {
         isSwitchingMicrophone = false;
 
         callSeconds = 0;
+
+        callStartedAt = null;
+        callHistorySaved = false;
 
         updateMicrophoneButton();
 
