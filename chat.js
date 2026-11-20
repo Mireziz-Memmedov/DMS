@@ -1328,22 +1328,25 @@ $(document).ready(function () {
             return;
         }
 
+        const currentUser = JSON.parse(localStorage.getItem("currentUser") || "{}");
 
-        let fullName =
-            (
+        let fullName;
+
+        if (currentUser && Number(otherUser.id) === Number(currentUser.id)) {
+            fullName = "özünlə söhbət";
+        } else {
+            fullName = (
                 (otherUser.first_name || "") +
                 " " +
                 (otherUser.last_name || "")
             ).trim();
 
-
-        if (!fullName) {
-
-            fullName =
-                otherUser.username ||
-                "İstifadəçi";
-
+            if (!fullName) {
+                fullName = otherUser.username || "İstifadəçi";
+            }
         }
+
+
 
 
         $("#chatUserName")
@@ -1402,6 +1405,19 @@ $(document).ready(function () {
 
         const $onlineDot =
             $("#chatUserOnlineDot");
+
+        // Özünlə söhbət
+        if (Number(otherUser.id) === Number(currentUser.id)) {
+
+            $status.text("").hide();
+            $onlineDot.hide();
+
+            return;
+        }
+
+        // Digər istifadəçilər
+        $status.show();
+        $onlineDot.show();
 
         if (otherUser.is_online === true) {
 
@@ -1508,22 +1524,11 @@ $(document).ready(function () {
                         )
                     ) {
 
-                        otherUser =
-                            conversation.participants.find(
-                                function (user) {
-
-                                    if (!currentUser) {
-                                        return true;
-                                    }
-
-
-                                    return (
-                                        String(user.id) !==
-                                        String(currentUser.id)
-                                    );
-
-                                }
-                            );
+                        otherUser = conversation.participants.find(user =>
+                            String(user.id) !== String(currentUser.id)
+                        ) || conversation.participants.find(user =>
+                            String(user.id) === String(currentUser.id)
+                        );
 
                     }
 
