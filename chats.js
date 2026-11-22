@@ -276,6 +276,10 @@ $(document).ready(function () {
 
         conversations.forEach(function (conversation) {
 
+            if (!conversation.last_message) {
+                return;
+            }
+
             const participants =
                 conversation.participants || [];
 
@@ -406,11 +410,17 @@ $(document).ready(function () {
                 $("<div>")
                     .addClass("chat-bottom");
 
+            const lastMessage = $("<p>");
 
-            const lastMessage =
-                $("<p>")
-                    .text("Söhbət başladı");
+            if (conversation.last_message && conversation.last_message.content) {
 
+                lastMessage.text(conversation.last_message.content);
+
+            } else {
+
+                lastMessage.text("Söhbət yoxdur");
+
+            }
 
             // =========================
             // ONLINE STATUS
